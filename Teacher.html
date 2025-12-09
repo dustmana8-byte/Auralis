@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #333; color: #fff; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: #444; padding: 20px; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #555; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #666; }
+        th { background: #222; }
+        tr:hover { background: #666; }
+        .high-score { color: #4cd137; }
+        .low-score { color: #e84118; }
+        
+        /* Modal for details */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); }
+        .modal-content { background: white; color: #333; margin: 10% auto; padding: 20px; width: 600px; border-radius: 8px; }
+        .close-btn { float: right; cursor: pointer; font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Teacher Dashboard</h1>
+    <p>Real-time Results Log</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Date/Time</th>
+                <th>Student Name</th>
+                <th>Score</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="results-table">
+            <!-- Populated by JS -->
+        </tbody>
+    </table>
+</div>
+
+<!-- Details Modal -->
+<div id="detail-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">×</span>
+        <h2 id="modal-title">Student Details</h2>
+        <div id="modal-body"></div>
+    </div>
+</div>
+
+<script>
+    // --- 1. FIREBASE CONFIGURATION (USE THE SAME AS STUDENT PAGE) ---
+    const firebaseConfig = {
+  apiKey: "AIzaSyBBNghZXIPgxege7wu_Od9fJi3KRR2ekLU",
+  authDomain: "auralis-14b53.firebaseapp.com",
+  projectId: "auralis-14b53",
+  storageBucket: "auralis-14b53.firebasestorage.app",
+  messagingSenderId: "209022640182",
+  appId: "1:209022640182:web:04359233f85da62dc0b897"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Listen for updates in real-time
+    db.collection("quiz_results").orderBy("timestamp", "desc").limit(50)
+      .onSnapshot((snapshot) => {
+          const tbody = document.getElementById('results-table');
+          tbody.innerHTML = "";
+          
+          snapshot.forEach(doc => {
+              const data = doc.data();
+              const date = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : "Just now";
+              const scoreClass = data.score >= 80 ? "high-score" : "low-score";
+              
+              // We store the full details stringified in a data attribute to show later
+              const row = `
+                <tr>
+                    <td>${date}</td>
+                    <td>${data.student}</td>
+                    <td class="${scoreClass}"><b>${data.score}%</b></td>
+                    <td><button onclick='showDetails(${JSON.stringify(data.details).replace(/'/g, "&apos;")}, "${data.student}")'>View Mistakes</button></td>
+                </tr>
+              `;
+              tbody.innerHTML += row;
+          });
+      });
+
+    function showDetails(details, name) {
+        document.getElementById('detail-modal').style.display = 'block';
+        document.getElementById('modal-title').innerText = `Details for ${name}`;
+        
+        const body = document.getElementById('modal-body');
+        body.innerHTML = "";
+        
+        // Filter to show ONLY wrong answers first, then correct ones
+        const mistakes = details.filter(d => !d.isCorrect);
+        
+        if(mistakes.length === 0) {
+            body.innerHTML = "<h3>Perfect Score! No mistakes.</h3>";
+        } else {
+            body.innerHTML = "<h3>Mistakes:</h3><ul>";
+            mistakes.forEach(m => {
+                body.innerHTML += `<li style="margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                    <strong>Q${m.questionNum}:</strong> Heard <u>${m.correctLabel}</u> but chose <span style="color:red">${m.chosenLabel}</span>.
+                </li>`;
+            });
+            body.innerHTML += "</ul>";
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('detail-modal').style.display = 'none';
+    }
+</script>
+
+</body>
+</html>
