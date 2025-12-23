@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>Teacher — Student Results & Stats</h1>
-  <p class="small">This page reads results posted to the Google Sheet via the Apps Script web app.</p>
+  <p class="small">This page reads results posted to the repository's results/ folder (saved by the Netlify function).</p>
 
   <div class="controls">
     <button id="refreshBtn">Refresh</button>
@@ -25,11 +25,13 @@
     <div style="margin-left:auto" id="summaryBox"></div>
   </div>
 
-  <div id="area">Click Refresh to load results from the Google Sheet.</div>
+  <div id="area">Click Refresh to load results from the repository.</div>
 
   <script>
-    // Web app URL (Apps Script) — updated
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWW642Co__rBPGEVt5gdsWO9-ZK7ePiFcyTmQ8IDWcajmrTeWsffXmbsNIntjUGaWV/exec";
+    const OWNER = "dustmana8-byte";
+    const REPO = "Auralis";
+    const BRANCH = "main";
+    const RESULTS_PATH = "results";
 
     const KEY_TO_NAME = {
       "mi2":"minor 2nd","ma2":"Major 2nd","mi3":"minor 3rd","ma3":"Major 3rd",
@@ -37,15 +39,40 @@
       "mi6":"minor 6th","ma6":"Major 6th","mi7":"minor 7th","ma7":"Major 7th"
     };
 
-    async function fetchResults(limit=0) {
+    // Fetch list of files in results/ and then fetch each file's JSON
+    async function fetchResultsFromRepo() {
+      const area = document.getElementById('area');
+      const listUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${RESULTS_PATH}?ref=${BRANCH}`;
       try {
-        const url = WEB_APP_URL + (limit>0 ? ("?limit="+limit) : "");
-        const r = await fetch(url);
+        const r = await fetch(listUrl);
+        if (r.status === 404) {
+          // no results folder yet
+          return [];
+        }
         if (!r.ok) throw new Error(await r.text());
-        const data = await r.json();
-        return data;
+        const items = await r.json();
+        // items may be a single file object if results is file or an array
+        const files = Array.isArray(items) ? items.filter(i => i.type === 'file' && i.name.toLowerCase().endsWith('.json')) : (items.type === 'file' ? [items] : []);
+        // fetch each JSON via download_url
+        const results = [];
+        for (const f of files) {
+          try {
+            const rr = await fetch(f.download_url);
+            if (!rr.ok) { console.warn("Failed to fetch file:", f.download_url); continue; }
+            const j = await rr.json();
+            // support both "result" wrapped and direct JSON
+            if (j && j.uid === undefined && j.result) {
+              results.push(j.result);
+            } else {
+              results.push(j);
+            }
+          } catch (err) {
+            console.warn("Error fetching/parsing JSON file", f.download_url, err);
+          }
+        }
+        return results;
       } catch (err) {
-        console.error("Failed to fetch results:", err);
+        console.error("Failed to fetch results from repo:", err);
         throw err;
       }
     }
@@ -55,7 +82,7 @@
         email: row.email || row.uid || row.Email || '',
         score: Number(row.score || 0),
         total: Number(row.total || 0),
-        date: row.Timestamp || row.date || row.Timestamp || row.Date || '',
+        date: row.date || row.Timestamp || row.Date || '',
         wrongCounts: row.wrongCounts || (row.wrongCountsJSON ? JSON.parse(row.wrongCountsJSON) : {}) || {},
         questionDetails: row.questionDetails || (row.questionDetailsJSON ? JSON.parse(row.questionDetailsJSON) : []) || []
       };
@@ -112,7 +139,7 @@
       });
       html += "</tbody></table>";
 
-      // details (recent attempts)
+      // details (most recent attempts)
       html += "<h2>Attempts (most recent first)</h2>";
       const allAttempts = [];
       users.forEach(u => {
@@ -134,7 +161,7 @@
       const area = document.getElementById('area');
       area.innerHTML = "<p>Loading results…</p>";
       try {
-        const rows = await fetchResults();
+        const rows = await fetchResultsFromRepo();
         const byUser = aggregateByUser(rows);
         renderTable(byUser);
       } catch (err) {
@@ -142,20 +169,10 @@
       }
     }
 
-    async function fetchResults(limit=0) {
-      const url = WEB_APP_URL + (limit>0 ? ("?limit="+limit) : "");
-      const r = await fetch(url);
-      if (!r.ok) {
-        const txt = await r.text().catch(()=>r.statusText);
-        throw new Error(txt || `${r.status} ${r.statusText}`);
-      }
-      return await r.json();
-    }
-
     document.getElementById('refreshBtn').addEventListener('click', refresh);
     document.getElementById('exportBtn').addEventListener('click', async () => {
       try {
-        const rows = await fetchResults();
+        const rows = await fetchResultsFromRepo();
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(rows, null, 2));
         const a = document.createElement('a'); a.href = dataStr; a.download = 'auralis_results.json'; document.body.appendChild(a); a.click(); a.remove();
       } catch (err) {
@@ -164,7 +181,7 @@
     });
 
     // initial state
-    document.getElementById('area').innerHTML = "<p>Press Refresh to load results from the sheet.</p>";
+    document.getElementById('area').innerHTML = "<p>Press Refresh to load results from the repository.</p>";
   </script>
 </body>
 </html>

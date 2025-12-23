@@ -91,9 +91,8 @@
   </div>
 
   <script>
-    // --- GOOGLE APPS SCRIPT WEB APP CONFIG (updated) ---
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWW642Co__rBPGEVt5gdsWO9-ZK7ePiFcyTmQ8IDWcajmrTeWsffXmbsNIntjUGaWV/exec";
-    const SECRET = "fatfellow1987"; // must match SHARED_SECRET in the Apps Script
+    // Netlify function endpoint
+    const NETLIFY_SAVE_URL = "/.netlify/functions/saveResult";
 
     // Interval prefix map (lowercase keys)
     const codeToName = {
@@ -286,7 +285,7 @@
 
     nextBtn.addEventListener('click', async () => {
       if (currentIdx >= questions.length - 1) {
-        await finalizeQuiz(); // saves locally and sends to Google Sheet
+        await finalizeQuiz(); // saves locally and sends to Netlify function
         return;
       }
       currentIdx++;
@@ -308,7 +307,7 @@
       if (cur) cur.classList.add('current');
     }
 
-    // finalize: compute score, wrongCounts, save to localStorage and send to Google Sheet
+    // finalize: compute score, wrongCounts, save to localStorage and send to Netlify function
     async function finalizeQuiz() {
       let score = 0;
       const wrongCounts = {};
@@ -333,22 +332,24 @@
       });
       saveAccounts(accounts);
 
-      // Send to Google Sheet (Apps Script)
+      // Send to Netlify function to create a results/JSON file in the repo
       const resultToSend = {
         uid: currentUser,
         email: currentUser + "@example.com",
         score: score,
         total: questions.length,
         wrongCounts: wrongCounts,
-        questionDetails: questionDetails
+        questionDetails: questionDetails,
+        date: new Date().toISOString()
       };
-      const saved = await sendResultToSheet(resultToSend);
+
+      const saved = await sendResultToNetlify({ result: resultToSend, username: currentUser });
       if (saved) {
-        statusEl.textContent = "Result saved to Google Sheet.";
-        serverResponseEl.textContent = "Sheet: saved ✓";
+        statusEl.textContent = "Result saved to repository via Netlify function.";
+        serverResponseEl.textContent = "Repo: saved ✓";
       } else {
-        statusEl.textContent = "Result saved locally; failed to save to Google Sheet.";
-        serverResponseEl.textContent = "Sheet: failed to save";
+        statusEl.textContent = "Result saved locally; failed to save to repository.";
+        serverResponseEl.textContent = "Repo: failed to save";
       }
 
       // Show review nav
@@ -374,32 +375,29 @@
       });
     }
 
-    // send result to Apps Script Web App
-    async function sendResultToSheet(resultObj) {
-      if (!WEB_APP_URL) return false;
-      if (!resultObj) return false;
-      // attach secret
-      if (SECRET && SECRET.length) resultObj.secret = SECRET;
+    // send result to Netlify function
+    async function sendResultToNetlify(payload) {
+      if (!NETLIFY_SAVE_URL) return false;
       try {
-        const r = await fetch(WEB_APP_URL, {
+        const r = await fetch(NETLIFY_SAVE_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(resultObj)
+          body: JSON.stringify(payload)
         });
         const text = await r.text();
         let j = null;
         try { j = JSON.parse(text); } catch(e){ j = text; }
         if (!r.ok) {
-          console.error("Saving to Sheet failed:", r.status, r.statusText, j);
-          serverResponseEl.textContent = `Sheet error: ${r.status} ${r.statusText}`;
+          console.error("Saving to repo failed:", r.status, r.statusText, j);
+          serverResponseEl.textContent = `Save error: ${r.status} ${r.statusText}`;
           return false;
         }
-        console.log("Saved to Google Sheet:", j);
-        serverResponseEl.textContent = `Sheet response: ${typeof j === 'object' ? (j.ok ? 'ok' : JSON.stringify(j)) : j}`;
+        console.log("Saved to repo:", j);
+        serverResponseEl.textContent = `Save response: ${typeof j === 'object' ? (j.ok ? 'ok' : JSON.stringify(j)) : j}`;
         return true;
       } catch(err) {
-        console.error("Network error saving to sheet:", err);
-        serverResponseEl.textContent = "Network error saving to sheet";
+        console.error("Network error saving to repo:", err);
+        serverResponseEl.textContent = "Network error saving to repo";
         return false;
       }
     }
