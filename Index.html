@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Music Ear Training for RCM Level 8 Exam</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 1rem; max-width: 900px; margin: auto; }
+    h1 { margin-bottom:.2rem; }
+    .controls-row { display:flex; gap:.5rem; align-items:center; margin-bottom: .6rem; flex-wrap:wrap; }
+    .choices button { display:block; margin: .4rem 0; padding:.6rem 1rem; width:100%; text-align:left; font-size:1rem; }
+    .correct { background: #d4ffd4; }
+    .wrong { background: #ffd6d6; }
+    .hidden { display:none; }
+    audio { width:100%; margin: .8rem 0; }
+    label { font-weight:600; margin-right:.4rem; }
+    #loginBox { border:1px solid #ddd; padding:1rem; border-radius:6px; margin-bottom:1rem; background:#fafafa; }
+    #controls { margin-bottom: 0.8rem; }
+    .nav-grid { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .nav-item { width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; background:#eee; cursor:pointer; user-select:none; }
+    .nav-item.correct { background: #48c774; color:white; }
+    .nav-item.wrong { background: #ff6b6b; color:white; }
+    .nav-item.current { outline:3px solid #4442; }
+    .small { font-size:0.9rem; color:#555; }
+    .user-buttons { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; }
+    .user-buttons button { padding:.5rem .8rem; font-weight:600; }
+    .other-input { display:flex; gap:.5rem; align-items:center; margin-top:.5rem; }
+    select, button, input { font:inherit; }
+    #serverResponse { margin-left: 0.6rem; color: #333; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <h1>Music Ear Training for RCM Level 8 Exam</h1>
+
+  <!-- LOGIN UI: two big buttons and an optional "other" name -->
+  <div id="loginBox">
+    <div><strong>Choose a user (no password required)</strong></div>
+    <div class="user-buttons" style="margin-top:.6rem">
+      <button id="btnBozart" type="button">Login as Bozart</button>
+      <button id="btnTest" type="button">Login as Test</button>
+    </div>
+
+    <div class="other-input">
+      <input id="otherName" placeholder="Other username (e.g. Alice)" />
+      <button id="btnOther">Login as Other</button>
+    </div>
+
+    <div style="margin-top:.6rem">
+      <button id="logoutBtn" class="hidden">Logout</button>
+      <span id="loginMessage" style="margin-left:1rem;color:#444"></span>
+      <span id="serverResponse"></span>
+    </div>
+  </div>
+
+  <!-- Controls (shown after login and files loaded) -->
+  <div id="controls" class="hidden">
+    <div class="controls-row">
+      <label for="questionCount">Questions:</label>
+      <input id="questionCount" type="number" min="1" value="10" style="width:5.2rem" />
+
+      <button id="startBtn">Start Quiz (mixed intervals)</button>
+
+      <div class="user-info" id="currentUserDisplay" style="margin-left:auto;font-weight:600"></div>
+    </div>
+    <div class="small">The quiz uses all available interval files (mixed intervals).</div>
+  </div>
+
+  <p id="status" class="small"></p>
+
+  <div id="quiz" class="hidden">
+    <div id="progress"></div>
+
+    <audio id="player" preload="auto" controls></audio>
+
+    <div class="choices" id="choices"></div>
+
+    <div style="margin-top:.6rem; display:flex; gap: .5rem; align-items:center;">
+      <button id="playBtn">Play</button>
+      <button id="nextBtn" class="hidden">Next</button>
+      <div id="resultNotice" style="margin-left:auto"></div>
+    </div>
+
+    <p id="feedback"></p>
+    <p id="score" class="hidden"></p>
+
+    <div id="reviewNav" style="margin-top:12px" class="hidden">
+      <div><strong>Jump to question:</strong></div>
+      <div id="navGrid" class="nav-grid"></div>
+      <div class="small" style="margin-top:6px">Green = correct, Red = wrong. Click a number to review/replay that question.</div>
+    </div>
+  </div>
+
+  <script>
+    // --- GOOGLE APPS SCRIPT WEB APP CONFIG (updated) ---
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWW642Co__rBPGEVt5gdsWO9-ZK7ePiFcyTmQ8IDWcajmrTeWsffXmbsNIntjUGaWV/exec";
+    const SECRET = "fatfellow1987"; // must match SHARED_SECRET in the Apps Script
+
+    // Interval prefix map (lowercase keys)
+    const codeToName = {
+      "mi2":"minor 2nd","ma2":"Major 2nd","mi3":"minor 3rd","ma3":"Major 3rd",
+      "p4":"Perfect 4th","a4":"Augmented 4th","p5":"Perfect 5th",
+      "mi6":"minor 6th","ma6":"Major 6th","mi7":"minor 7th","ma7":"Major 7th"
+    };
+
+    // localStorage accounts key
+    const ACCOUNTS_KEY = "auralis_accounts_v1";
+
+    // Helper storage functions
+    function loadAccounts() {
+      try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "{}"); }
+      catch(e){ return {}; }
+    }
+    function saveAccounts(obj){ localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(obj)); }
+
+    // Ensure Bozart and Test exist (no passwords required)
+    (function ensureDemoAccounts(){
+      const a = loadAccounts();
+      if (!a["Bozart"]) a["Bozart"] = { results: [] };
+      if (!a["Test"]) a["Test"] = { results: [] };
+      saveAccounts(a);
+    })();
+
+    // DOM refs
+    const btnBozart = document.getElementById('btnBozart');
+    const btnTest = document.getElementById('btnTest');
+    const btnOther = document.getElementById('btnOther');
+    const otherName = document.getElementById('otherName');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const loginMessage = document.getElementById('loginMessage');
+    const serverResponseEl = document.getElementById('serverResponse');
+    const controls = document.getElementById('controls');
+    const currentUserDisplay = document.getElementById('currentUserDisplay');
+    const startBtn = document.getElementById('startBtn');
+    const statusEl = document.getElementById('status');
+
+    let currentUser = null;
+
+    // login handlers (simple, no password)
+    function loginAs(name) {
+      const accounts = loadAccounts();
+      if (!accounts[name]) accounts[name] = { results: [] };
+      saveAccounts(accounts);
+      currentUser = name;
+      loginMessage.textContent = `Logged in as ${name}.`;
+      serverResponseEl.textContent = "";
+      btnBozart.disabled = true; btnTest.disabled = true; btnOther.disabled = true; otherName.disabled = true;
+      logoutBtn.classList.remove('hidden');
+      controls.classList.remove('hidden');
+      currentUserDisplay.textContent = `User: ${currentUser}`;
+      if (filesLoaded) startBtn.disabled = false;
+    }
+
+    btnBozart.addEventListener('click', () => loginAs('Bozart'));
+    btnTest.addEventListener('click', () => loginAs('Test'));
+    btnOther.addEventListener('click', () => {
+      const v = (otherName.value || "").trim();
+      if (!v) { alert('Enter a username first'); return; }
+      loginAs(v);
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      currentUser = null;
+      loginMessage.textContent = "Logged out.";
+      serverResponseEl.textContent = "";
+      btnBozart.disabled = false; btnTest.disabled = false; btnOther.disabled = false; otherName.disabled = false;
+      logoutBtn.classList.add('hidden');
+      controls.classList.add('hidden');
+      currentUserDisplay.textContent = "";
+      document.getElementById('quiz').classList.add('hidden');
+    });
+
+    // helpers for mp3 filenames
+    function prefixKeyFromFilename(filename) {
+      const base = filename.split('/').pop();
+      return (base.split('_')[0] || "").toLowerCase();
+    }
+    function jsDelivrUrl(filename) {
+      return `https://cdn.jsdelivr.net/gh/dustmana8-byte/Auralis@audio/${encodeURIComponent(filename)}`;
+    }
+    function shuffle(a){ for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+
+    // Load mp3 list from GitHub audio branch root
+    let allFiles = [], filesLoaded = false;
+    async function loadFiles() {
+      statusEl.textContent = "";
+      const api = `https://api.github.com/repos/dustmana8-byte/Auralis/contents?ref=audio`;
+      try {
+        const r = await fetch(api);
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        const data = await r.json();
+        const mp3s = data.filter(f => f.type === "file" && f.name.toLowerCase().endsWith('.mp3'));
+        const files = mp3s.map(f => {
+          const key = prefixKeyFromFilename(f.name);
+          return { name: f.name, url: jsDelivrUrl(f.name), key, displayName: codeToName[key] || f.name };
+        }).filter(x => x.key && codeToName[x.key]);
+        if (files.length === 0) {
+          statusEl.textContent = "No usable mp3 files found (filenames must start with e.g. 'mi3_').";
+          return;
+        }
+        allFiles = files;
+        filesLoaded = true;
+        if (currentUser) startBtn.disabled = false;
+      } catch (err) {
+        statusEl.textContent = "Failed to load audio files: " + err.message;
+        console.error(err);
+      }
+    }
+
+    // QUIZ UI & logic
+    const player = document.getElementById('player'), choicesDiv = document.getElementById('choices');
+    const playBtn = document.getElementById('playBtn'), nextBtn = document.getElementById('nextBtn');
+    const progress = document.getElementById('progress'), feedback = document.getElementById('feedback');
+    const scoreP = document.getElementById('score'), reviewNav = document.getElementById('reviewNav'), navGrid = document.getElementById('navGrid');
+
+    let questions = [], currentIdx = 0;
+
+    startBtn.addEventListener('click', () => {
+      if (!currentUser) { alert("Please login first"); return; }
+      let qCount = parseInt(document.getElementById('questionCount').value,10) || 10;
+      if (qCount < 1) qCount = 1;
+
+      const pool = shuffle(allFiles.slice());
+      const keys = Array.from(new Set(allFiles.map(f=>f.key)));
+      questions = [];
+      for (let i=0;i<qCount;i++) {
+        if (pool.length===0) pool.push(...shuffle(allFiles.slice()));
+        const file = pool.pop();
+        const correctKey = file.key;
+        const otherKeys = keys.filter(k => k !== correctKey);
+        shuffle(otherKeys);
+        const wrongCount = Math.min(3, otherKeys.length);
+        const distractors = otherKeys.slice(0, wrongCount);
+        const optionKeys = shuffle([correctKey, ...distractors]);
+        questions.push({ file, optionsKeys: optionKeys, correctKey, selectedKey: null });
+      }
+      currentIdx = 0;
+      document.getElementById('quiz').classList.remove('hidden');
+      scoreP.classList.add('hidden');
+      reviewNav.classList.add('hidden');
+      renderQuestion(currentIdx);
+    });
+
+    function renderQuestion(idx, reviewing=false) {
+      const q = questions[idx];
+      progress.textContent = `Question ${idx+1} / ${questions.length}`;
+      feedback.textContent = "";
+      choicesDiv.innerHTML = "";
+      nextBtn.classList.add('hidden');
+      playBtn.disabled=false;
+
+      player.pause();
+      player.src = q.file.url;
+      player.load();
+
+      q.optionsKeys.forEach(key => {
+        const btn = document.createElement('button');
+        btn.type = "button";
+        btn.textContent = codeToName[key] || key;
+        btn.dataset.key = key;
+        if (reviewing || q.selectedKey !== null) {
+          btn.disabled = true;
+          if (key === q.correctKey) btn.classList.add('correct');
+          if (q.selectedKey && key === q.selectedKey && q.selectedKey !== q.correctKey) btn.classList.add('wrong');
+        } else {
+          btn.addEventListener('click', () => {
+            q.selectedKey = key;
+            if (key === q.correctKey) { btn.classList.add('correct'); feedback.textContent = "Correct!"; }
+            else { btn.classList.add('wrong'); feedback.textContent = "Wrong — the correct answer is highlighted."; }
+            Array.from(choicesDiv.querySelectorAll('button')).forEach(b => { if (b.dataset.key === q.correctKey) b.classList.add('correct'); b.disabled = true; });
+            nextBtn.classList.remove('hidden');
+            nextBtn.textContent = (idx === questions.length-1) ? "Finish":"Next";
+            updateNavColors();
+          });
+        }
+        choicesDiv.appendChild(btn);
+      });
+
+      playBtn.textContent = "Play";
+      playBtn.onclick = async () => {
+        try {
+          if (player.paused) { await player.play(); playBtn.textContent="Pause"; }
+          else { player.pause(); playBtn.textContent="Play"; }
+        } catch (err) { alert("Playback failed: "+(err.message||err)); }
+      };
+    }
+
+    nextBtn.addEventListener('click', async () => {
+      if (currentIdx >= questions.length - 1) {
+        await finalizeQuiz(); // saves locally and sends to Google Sheet
+        return;
+      }
+      currentIdx++;
+      renderQuestion(currentIdx);
+      updateNavHighlight();
+    });
+
+    function updateNavColors() {
+      Array.from(navGrid.children).forEach((node, i) => {
+        node.classList.remove('correct','wrong');
+        const q = questions[i];
+        if (!q.selectedKey) return;
+        if (q.selectedKey === q.correctKey) node.classList.add('correct'); else node.classList.add('wrong');
+      });
+    }
+    function updateNavHighlight() {
+      Array.from(navGrid.children).forEach(n => n.classList.remove('current'));
+      const cur = navGrid.querySelector(`[data-index="${currentIdx}"]`);
+      if (cur) cur.classList.add('current');
+    }
+
+    // finalize: compute score, wrongCounts, save to localStorage and send to Google Sheet
+    async function finalizeQuiz() {
+      let score = 0;
+      const wrongCounts = {};
+      const questionDetails = questions.map(q => {
+        if (q.selectedKey === q.correctKey) score++;
+        else wrongCounts[q.correctKey] = (wrongCounts[q.correctKey] || 0) + 1;
+        return { correctKey: q.correctKey, selectedKey: q.selectedKey || null };
+      });
+
+      scoreP.textContent = `You scored ${score} / ${questions.length} (${Math.round(1000*score/questions.length)/10}%).`;
+      scoreP.classList.remove('hidden');
+
+      // Save locally in account
+      const accounts = loadAccounts();
+      if (!accounts[currentUser]) accounts[currentUser] = { results: [] };
+      accounts[currentUser].results.push({
+        score,
+        total: questions.length,
+        date: new Date().toISOString(),
+        questionDetails,
+        wrongCounts
+      });
+      saveAccounts(accounts);
+
+      // Send to Google Sheet (Apps Script)
+      const resultToSend = {
+        uid: currentUser,
+        email: currentUser + "@example.com",
+        score: score,
+        total: questions.length,
+        wrongCounts: wrongCounts,
+        questionDetails: questionDetails
+      };
+      const saved = await sendResultToSheet(resultToSend);
+      if (saved) {
+        statusEl.textContent = "Result saved to Google Sheet.";
+        serverResponseEl.textContent = "Sheet: saved ✓";
+      } else {
+        statusEl.textContent = "Result saved locally; failed to save to Google Sheet.";
+        serverResponseEl.textContent = "Sheet: failed to save";
+      }
+
+      // Show review nav
+      populateNavGrid();
+      reviewNav.classList.remove('hidden');
+      updateNavColors();
+      updateNavHighlight();
+    }
+
+    function populateNavGrid() {
+      navGrid.innerHTML = "";
+      questions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = "nav-item";
+        div.textContent = (i+1);
+        div.dataset.index = i;
+        div.addEventListener('click', () => {
+          currentIdx = i;
+          renderQuestion(i, true);
+          updateNavHighlight();
+        });
+        navGrid.appendChild(div);
+      });
+    }
+
+    // send result to Apps Script Web App
+    async function sendResultToSheet(resultObj) {
+      if (!WEB_APP_URL) return false;
+      if (!resultObj) return false;
+      // attach secret
+      if (SECRET && SECRET.length) resultObj.secret = SECRET;
+      try {
+        const r = await fetch(WEB_APP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(resultObj)
+        });
+        const text = await r.text();
+        let j = null;
+        try { j = JSON.parse(text); } catch(e){ j = text; }
+        if (!r.ok) {
+          console.error("Saving to Sheet failed:", r.status, r.statusText, j);
+          serverResponseEl.textContent = `Sheet error: ${r.status} ${r.statusText}`;
+          return false;
+        }
+        console.log("Saved to Google Sheet:", j);
+        serverResponseEl.textContent = `Sheet response: ${typeof j === 'object' ? (j.ok ? 'ok' : JSON.stringify(j)) : j}`;
+        return true;
+      } catch(err) {
+        console.error("Network error saving to sheet:", err);
+        serverResponseEl.textContent = "Network error saving to sheet";
+        return false;
+      }
+    }
+
+    // keyboard space toggle
+    window.addEventListener('keyup', e => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (player.paused) player.play(); else player.pause();
+      }
+    });
+
+    // bootstrap initializer (no top-level await)
+    async function init() {
+      startBtn.disabled = true;
+      await loadFiles();
+    }
+    init();
+  </script>
+</body>
+</html>
