@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teacher — Student Results & Stats</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 1rem; max-width:1100px; margin:auto; }
+    h1 { margin-bottom:.2rem; }
+    table { width:100%; border-collapse:collapse; margin-top:.6rem; }
+    th,td { padding:.4rem .6rem; border:1px solid #eee; text-align:left; font-size:.95rem; }
+    .small { font-size:.85rem; color:#555; }
+    .controls { display:flex; gap:.6rem; align-items:center; margin-bottom:.6rem; flex-wrap:wrap; }
+    button { padding:.4rem .6rem; }
+    pre { background:#f8f8f8; padding:.6rem; border-radius:6px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Teacher — Student Results & Stats</h1>
+  <p class="small">This page reads results posted to the Google Sheet via the Apps Script web app.</p>
+
+  <div class="controls">
+    <button id="refreshBtn">Refresh</button>
+    <button id="exportBtn">Export JSON</button>
+    <div style="margin-left:auto" id="summaryBox"></div>
+  </div>
+
+  <div id="area">Click Refresh to load results from the Google Sheet.</div>
+
+  <script>
+    // Web app URL (Apps Script) — updated
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWW642Co__rBPGEVt5gdsWO9-ZK7ePiFcyTmQ8IDWcajmrTeWsffXmbsNIntjUGaWV/exec";
+
+    const KEY_TO_NAME = {
+      "mi2":"minor 2nd","ma2":"Major 2nd","mi3":"minor 3rd","ma3":"Major 3rd",
+      "p4":"Perfect 4th","a4":"Augmented 4th","p5":"Perfect 5th",
+      "mi6":"minor 6th","ma6":"Major 6th","mi7":"minor 7th","ma7":"Major 7th"
+    };
+
+    async function fetchResults(limit=0) {
+      try {
+        const url = WEB_APP_URL + (limit>0 ? ("?limit="+limit) : "");
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        return data;
+      } catch (err) {
+        console.error("Failed to fetch results:", err);
+        throw err;
+      }
+    }
+
+    function normalizeRow(row) {
+      return {
+        email: row.email || row.uid || row.Email || '',
+        score: Number(row.score || 0),
+        total: Number(row.total || 0),
+        date: row.Timestamp || row.date || row.Timestamp || row.Date || '',
+        wrongCounts: row.wrongCounts || (row.wrongCountsJSON ? JSON.parse(row.wrongCountsJSON) : {}) || {},
+        questionDetails: row.questionDetails || (row.questionDetailsJSON ? JSON.parse(row.questionDetailsJSON) : []) || []
+      };
+    }
+
+    function aggregateByUser(rows) {
+      const byUser = {};
+      rows.forEach(r => {
+        const n = normalizeRow(r);
+        const key = n.email || "unknown";
+        byUser[key] = byUser[key] || { attempts: [], aggregatedWrong: {} };
+        byUser[key].attempts.push(n);
+        for (const [k, v] of Object.entries(n.wrongCounts || {})) {
+          byUser[key].aggregatedWrong[k] = (byUser[key].aggregatedWrong[k] || 0) + Number(v || 0);
+        }
+      });
+      return byUser;
+    }
+
+    function renderTable(byUser) {
+      const area = document.getElementById('area');
+      const users = Object.keys(byUser).sort();
+      if (users.length === 0) { area.innerHTML = "<p>No results yet.</p>"; return; }
+
+      // compute overall summary
+      let totalAttempts = 0, totalScores = 0, totalPossible = 0;
+      users.forEach(u => {
+        byUser[u].attempts.forEach(a => { totalAttempts++; totalScores += a.score; totalPossible += a.total || 0; });
+      });
+      const overallPct = totalPossible ? Math.round(1000*totalScores/totalPossible)/10 : 0;
+      document.getElementById('summaryBox').textContent = `Accounts: ${users.length} · Attempts: ${totalAttempts} · Overall avg: ${overallPct}%`;
+
+      let html = "<h2>Students summary</h2>";
+      html += "<table><thead><tr><th>Student</th><th>Attempts</th><th>Avg %</th><th>Best %</th><th>Last</th><th>Missed intervals</th></tr></thead><tbody>";
+      users.forEach(u => {
+        const attempts = byUser[u].attempts;
+        let sumPct = 0, best = 0, last = null;
+        for (const a of attempts) {
+          const pct = a.total ? (a.score / a.total * 100) : 0;
+          sumPct += pct;
+          if (pct > best) best = pct;
+          if (!last || (a.date && String(a.date) > String(last))) last = a.date;
+        }
+        const avg = attempts.length ? (sumPct / attempts.length).toFixed(1) : "-";
+        const parts = Object.entries(byUser[u].aggregatedWrong).map(([k,v]) => `${KEY_TO_NAME[k] || k} x ${v}`);
+        html += `<tr>
+                  <td>${u}</td>
+                  <td>${attempts.length}</td>
+                  <td>${avg}%</td>
+                  <td>${best.toFixed ? best.toFixed(1) + '%' : best + '%'}</td>
+                  <td>${last ? new Date(last).toLocaleString() : '-'}</td>
+                  <td>${parts.length ? parts.join(' · ') : 'none'}</td>
+                </tr>`;
+      });
+      html += "</tbody></table>";
+
+      // details (recent attempts)
+      html += "<h2>Attempts (most recent first)</h2>";
+      const allAttempts = [];
+      users.forEach(u => {
+        byUser[u].attempts.forEach(a => { a._user = u; allAttempts.push(a); });
+      });
+      allAttempts.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      for (const a of allAttempts) {
+        const pct = a.total ? (Math.round(1000*a.score/a.total)/10) : 0;
+        html += `<div style="border:1px solid #eee;padding:.5rem;margin:.4rem 0">
+                   <strong>${a._user}</strong> — ${a.date? new Date(a.date).toLocaleString() : '-'} — Score: ${a.score}/${a.total} (${pct}%)
+                   <div class="small">Missed intervals: ${Object.keys(a.wrongCounts||{}).length ? Object.entries(a.wrongCounts).map(([k,v]) => `${KEY_TO_NAME[k]||k} x ${v}`).join(' · ') : 'none'}</div>
+                 </div>`;
+      }
+
+      document.getElementById('area').innerHTML = html;
+    }
+
+    async function refresh() {
+      const area = document.getElementById('area');
+      area.innerHTML = "<p>Loading results…</p>";
+      try {
+        const rows = await fetchResults();
+        const byUser = aggregateByUser(rows);
+        renderTable(byUser);
+      } catch (err) {
+        area.innerHTML = `<p style="color:red">Failed to load results: ${err.message}</p>`;
+      }
+    }
+
+    async function fetchResults(limit=0) {
+      const url = WEB_APP_URL + (limit>0 ? ("?limit="+limit) : "");
+      const r = await fetch(url);
+      if (!r.ok) {
+        const txt = await r.text().catch(()=>r.statusText);
+        throw new Error(txt || `${r.status} ${r.statusText}`);
+      }
+      return await r.json();
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', refresh);
+    document.getElementById('exportBtn').addEventListener('click', async () => {
+      try {
+        const rows = await fetchResults();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(rows, null, 2));
+        const a = document.createElement('a'); a.href = dataStr; a.download = 'auralis_results.json'; document.body.appendChild(a); a.click(); a.remove();
+      } catch (err) {
+        alert("Export failed: " + err.message);
+      }
+    });
+
+    // initial state
+    document.getElementById('area').innerHTML = "<p>Press Refresh to load results from the sheet.</p>";
+  </script>
+</body>
+</html>
