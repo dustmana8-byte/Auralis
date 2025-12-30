@@ -234,7 +234,32 @@
         console.error(err);
       }
     }
-
+async function sendResultToSheet(data) {
+  if (!SHEET_WEBAPP_URL) {
+    console.error("SHEET_WEBAPP_URL not set");
+    return false;
+  }
+  console.log("sendResultToSheet payload:", data);
+  try {
+    const res = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    console.log("Sheet POST status:", res.status, res.statusText);
+    const text = await res.text();
+    console.log("Sheet POST response text:", text);
+    try {
+      const j = JSON.parse(text);
+      if (j && j.ok === true) return true;
+      if (j && j.ok === false) return false;
+    } catch(e) { /* not JSON */ }
+    return res.ok;
+  } catch (err) {
+    console.error("Error sending to sheet:", err);
+    return false;
+  }
+}
     // QUIZ UI & logic
     let questions = [], currentIdx = 0;
 
