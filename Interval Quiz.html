@@ -33,6 +33,8 @@
     select, button, input { font:inherit; }
     #serverResponse { margin-left: 0.6rem; color: #333; font-size: 0.95rem; }
     #wrongStats { margin-top: 0.8rem; background:#fff8f0; padding:.6rem; border-radius:6px; border:1px solid #f0d7c0; }
+    #copyToDocBtn { margin-top: 0.6rem; padding: .5rem .8rem; font-weight:600; }
+    #submitInfo { margin-top: .6rem; font-weight:600; }
   </style>
 </head>
 <body>
@@ -89,8 +91,17 @@
     <p id="feedback"></p>
     <p id="score" class="hidden"></p>
 
+    <!-- submit info shows Login and Timestamp -->
+    <div id="submitInfo" class="hidden"></div>
+
     <!-- wrong statistics -->
     <div id="wrongStats" class="hidden"></div>
+
+    <!-- Copy to Google Doc button (hidden until quiz finished) -->
+    <div id="copyContainer" class="hidden">
+      <button id="copyToDocBtn" type="button">Copy results & Open Google Doc</button>
+      <span class="small" style="margin-left:.6rem">This copies the results to clipboard and opens the teacher's Google Doc for pasting.</span>
+    </div>
 
     <div id="reviewNav" style="margin-top:12px" class="hidden">
       <div><strong>Jump to question:</strong></div>
@@ -100,8 +111,11 @@
   </div>
 
   <script>
-    // Your deployed Apps Script web app URL (you provided this).
-    const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbysU8_OylPPKJqBB11esw6pvQX6Wr1KASOohhC2v_Zkh_JPSHLuWoe5dbjpKxFFGK8dng/exec";
+    // Your deployed Apps Script web app URL (if you use it)
+    const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzS7uWPkIXHP94UG_7yrmLWL0VmArZgt084pgGgyzm2h-5Ad1PBOslSvXKQED_OOdd7HQ/exec";
+
+    // Teacher's Google Doc to open for pasting results
+    const TEACHER_DOC_URL = "https://docs.google.com/document/d/17P6DXWNvD-umI-M25iDnMJUewdUgNdkCDyruUeWgDts/edit?usp=sharing";
 
     // Interval prefix map (lowercase keys)
     const codeToName = {
@@ -161,6 +175,9 @@
     const navGrid = document.getElementById('navGrid');
     const wrongStatsEl = document.getElementById('wrongStats');
     const player = document.getElementById('player');
+    const submitInfo = document.getElementById('submitInfo');
+    const copyContainer = document.getElementById('copyContainer');
+    const copyToDocBtn = document.getElementById('copyToDocBtn');
 
     let currentUser = null;
 
@@ -234,32 +251,7 @@
         console.error(err);
       }
     }
-async function sendResultToSheet(data) {
-  if (!SHEET_WEBAPP_URL) {
-    console.error("SHEET_WEBAPP_URL not set");
-    return false;
-  }
-  console.log("sendResultToSheet payload:", data);
-  try {
-    const res = await fetch(SHEET_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    console.log("Sheet POST status:", res.status, res.statusText);
-    const text = await res.text();
-    console.log("Sheet POST response text:", text);
-    try {
-      const j = JSON.parse(text);
-      if (j && j.ok === true) return true;
-      if (j && j.ok === false) return false;
-    } catch(e) { /* not JSON */ }
-    return res.ok;
-  } catch (err) {
-    console.error("Error sending to sheet:", err);
-    return false;
-  }
-}
+
     // QUIZ UI & logic
     let questions = [], currentIdx = 0;
 
@@ -282,6 +274,8 @@ async function sendResultToSheet(data) {
       scoreP.classList.add('hidden');
       reviewNav.classList.add('hidden');
       wrongStatsEl.classList.add('hidden');
+      submitInfo.classList.add('hidden');
+      copyContainer.classList.add('hidden');
       renderQuestion(currentIdx);
     });
 
@@ -428,6 +422,10 @@ async function sendResultToSheet(data) {
         serverResponseEl.textContent = "Sheet: not configured";
       }
 
+      // Show submit info (login + timestamp)
+      submitInfo.textContent = `Submitted by: ${currentUser}  —  Time: ${timestamp}`;
+      submitInfo.classList.remove('hidden');
+
       // Show wrong-item stats
       const wrongItems = [];
       questions.forEach((q, i) => {
@@ -451,6 +449,19 @@ async function sendResultToSheet(data) {
         wrongStatsEl.innerHTML = "<strong>No wrong answers — well done!</strong>";
         wrongStatsEl.classList.remove('hidden');
       }
+
+      // Show copy button and attach handler with current data
+      copyContainer.classList.remove('hidden');
+      copyToDocBtn.onclick = async () => {
+        await copyResultsAndOpenDoc({
+          uid: payload.uid,
+          date: payload.date,
+          score: payload.score,
+          total: payload.total,
+          questionDetails: payload.questionDetails,
+          wrongItems: wrongItems
+        }, TEACHER_DOC_URL);
+      };
 
       // Show review nav
       populateNavGrid();
@@ -494,6 +505,68 @@ async function sendResultToSheet(data) {
       } catch (err) {
         console.error('Error sending to sheet:', err);
         return false;
+      }
+    }
+
+    // Build formatted text, copy to clipboard, and open the teacher's Google Doc
+    async function copyResultsAndOpenDoc(result, docUrl) {
+      // Build human-readable summary
+      let text = "";
+      text += "Auralis Quiz Result\n";
+      text += "-------------------\n";
+      text += `User: ${result.uid}\n`;
+      text += `Time: ${result.date}\n`;
+      text += `Score: ${result.score} / ${result.total}\n\n`;
+      text += "Question details:\n";
+      if (Array.isArray(result.questionDetails)) {
+        result.questionDetails.forEach((qd, i) => {
+          const correctName = codeToName[qd.correctKey] || qd.correctKey;
+          const selectedName = qd.selectedKey ? (codeToName[qd.selectedKey] || qd.selectedKey) : "(no answer)";
+          text += `Q${i+1}: Correct: ${correctName}   Selected: ${selectedName}\n`;
+        });
+      } else {
+        text += JSON.stringify(result.questionDetails) + "\n";
+      }
+
+      if (result.wrongItems && result.wrongItems.length > 0) {
+        text += "\nWrong items summary:\n";
+        result.wrongItems.forEach(it => {
+          text += `Question ${it.questionIndex}: "${it.correctName}"  — Wrong Answer: "${it.wrongName}"\n`;
+        });
+      } else {
+        text += "\nNo wrong items — all correct.\n";
+      }
+
+      text += `\n(You can paste this into the teacher's Google Doc: ${docUrl})\n`;
+
+      // Copy to clipboard with fallback
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          // fallback: textarea copy
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (e) { console.warn('execCommand copy failed', e); }
+          ta.remove();
+        }
+        alert('Results copied to clipboard. The teacher\'s Google Doc will open — paste the results there (Ctrl/Cmd+V) and save.');
+      } catch (err) {
+        console.error('Copy failed', err);
+        alert('Copy to clipboard failed. The teacher\'s Google Doc will open — you can paste manually.');
+      }
+
+      // Open the Google Doc in a new tab (so student can paste)
+      try {
+        const win = window.open(docUrl, '_blank');
+        if (!win) {
+          // popup blocked
+          window.location.href = docUrl;
+        }
+      } catch (e) {
+        window.location.href = docUrl;
       }
     }
 
