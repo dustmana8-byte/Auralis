@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Music Ear Training for RCM Level 8 Exam (Sequence Mode)</title>
+  <style>
+    :root{
+      --accent-green: #2ecc71; /* brighter green */
+      --accent-green-strong: #21c46a;
+      --accent-red: #ff4757;   /* brighter red */
+      --nav-bg: #f3f3f3;
+      --nav-text-dim: #666;
+    }
+
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 1rem; max-width: 1000px; margin: auto; }
+    h1 { margin-bottom:.2rem; }
+    .controls-row { display:flex; gap:.5rem; align-items:center; margin-bottom: .6rem; flex-wrap:wrap; }
+    .choices { display:flex; flex-direction:column; gap:.6rem; margin: .6rem 0; position:relative; padding-bottom:120px; }
+    .choice-row { display:flex; gap:.6rem; align-items:stretch; flex-wrap:nowrap; }
+    .choice-row.single { flex-direction:row; justify-content:center; }
+    .choice-row.two { justify-content:space-between; }
+    .choice-row.vertical { flex-direction:column; align-items:stretch; }
+    .choice-grid-2col { display:flex; gap:.6rem; flex-wrap:wrap; }
+    .choices button {
+      padding:1rem 1rem;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      white-space:normal;
+      font-size:1.05rem;
+      min-width:140px;
+      min-height:56px;
+      margin:4px 0;
+      border-radius:10px;
+      flex: 1 1 140px;
+    }
+    .correct { background: #d4ffd4 !important; }
+    .wrong { background: #ffd6d6 !important; }
+    .hidden { display:none; }
+    audio { width:100%; margin: .8rem 0; }
+    label { font-weight:600; margin-right:.4rem; }
+    #loginBox { border:1px solid #ddd; padding:1rem; border-radius:6px; margin-bottom:1rem; background:#fafafa; }
+    #controls { margin-bottom: 0.8rem; }
+    .nav-grid { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .nav-item { width:46px; height:46px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:var(--nav-bg); cursor:default; user-select:none; font-weight:800; }
+    .nav-item:hover { transform: translateY(-2px); }
+    .nav-item.correct { background: var(--accent-green); color: white; box-shadow: 0 6px 14px rgba(33,196,106,0.18); cursor:pointer; }
+    .nav-item.wrong { background: var(--accent-red); color: white; box-shadow: 0 6px 14px rgba(255, 71, 87,0.18); cursor:pointer; }
+    .nav-item.current { outline:3px solid rgba(0,0,0,0.08); transform: translateY(-1px); }
+    .nav-item.presented { color:#111; background: #f1f1f1; cursor:default; }
+    .nav-item.not-presented { color:#999; background:#fbfbfb; cursor:default; }
+    .nav-section { margin-top:10px; }
+    .nav-section-title { font-weight:700; margin-top:8px; margin-bottom:6px; }
+    .small { font-size:0.9rem; color:#555; }
+    .user-buttons { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; }
+    .user-buttons button { padding:.5rem .8rem; font-weight:600; }
+    .other-input { display:flex; gap:.5rem; align-items:center; margin-top:.5rem; }
+    select, button, input { font:inherit; }
+    #serverResponse { margin-left: 0.6rem; color: #333; font-size: 0.95rem; }
+    #wrongStats { margin-top: 0.8rem; background:#fff8f0; padding:.6rem; border-radius:6px; border:1px solid #f0d7c0; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; }
+    #wrongStats .wrong-highlight { background:#ffd6d6; color:#900; padding:2px 6px; border-radius:4px; font-weight:700; }
+    #submitInfo { margin-top: .6rem; font-weight:600; }
+    .section-title { margin-top: 0.8rem; font-weight:700; }
+    .review-section { margin-top: 12px; border-top:1px dashed #ddd; padding-top:8px; }
+    .quiz-layout { display:flex; gap:1rem; align-items:flex-start; }
+    .quiz-main { flex:1; min-width:0; position:relative; }
+    .quiz-side { width:320px; flex-shrink:0; border-left:1px solid #eee; padding-left:16px; }
+    @media (max-width:900px) {
+      .quiz-layout { flex-direction:column; gap:.5rem; }
+      .quiz-side { order: 0; width:100%; border-left:none; padding-left:0; padding-right:0; background:transparent; position:static; z-index:auto; border-bottom:none; margin-bottom:8px; }
+      .quiz-main { order: 1; }
+      .nav-grid { gap:6px; }
+      .nav-item { width:40px; height:40px; font-size:.96rem; }
+      .choices { padding-bottom:160px; }
+    }
+
+    .play-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .play-left { display:flex; align-items:center; gap:12px; }
+    #bigPlayBtn { width:96px; height:96px; border-radius:50%; background: linear-gradient(135deg,var(--accent-green),var(--accent-green-strong)); display:inline-flex; align-items:center; justify-content:center; }
+    #bigPlayBtn svg { width:54px; height:54px; fill:white; }
+    #playCounter { font-weight:700; color:#222; font-size:0.95rem; }
+    #bigNextBtn { width:86px; height:86px; border-radius:50%; background: linear-gradient(135deg,#3498db,#2c82d6); display:inline-flex; align-items:center; justify-content:center; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
+    #bigNextBtn svg { width:44px; height:44px; fill:white; }
+    #copyToDocBtn { display:inline-flex; align-items:center; gap:10px; padding:12px 18px; border-radius:12px; background: linear-gradient(135deg,#6a11cb,#2575fc); color: white; font-weight:800; font-size:0.95rem; border:none; cursor:pointer; }
+    #copyToDocBtn svg { width:20px; height:20px; fill: white; }
+    #nextBtn { display:none; }
+
+    /* celebration overlay */
+    .celebration-overlay {
+      position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; z-index:9999;
+      background: rgba(0,0,0,0.28);
+    }
+    .celebration-center {
+      position: relative;
+      text-align:center;
+      background: rgba(255,255,255,0.98);
+      padding:20px 26px;
+      border-radius:12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.16);
+      font-weight:800;
+      max-width:760px;
+      z-index:10001;
+    }
+    .celebration-close {
+      position:absolute; top:6px; right:10px; font-size:24px; background:#fff; border-radius:10px; width:64px; height:64px; border:1px solid rgba(0,0,0,0.08); cursor:pointer; z-index:10002;
+      display:inline-flex; align-items:center; justify-content:center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    }
+    .celebration-timer {
+      position:absolute; top:10px; left:12px; font-size:16px; color:#111; background:transparent; padding:6px 10px; border-radius:8px; z-index:10002;
+      font-weight:700;
+    }
+    .celebration-burst {
+      position:absolute; pointer-events:none; animation: floatUp 6000ms linear infinite;
+      font-size:36px; z-index:10000;
+    }
+    @keyframes floatUp { 0% { transform: translateY(0) scale(0.8); opacity:0; } 10% { opacity:1; } 100% { transform: translateY(-420px) scale(1.05); opacity:0; } }
+
+    /* progression-prompt modal */
+    .progression-modal {
+      position: fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; z-index:10010;
+      background: rgba(0,0,0,0.35);
+    }
+    .progression-modal .box {
+      background:#fff; padding:18px; border-radius:10px; max-width:680px; width:92%; text-align:center; box-shadow: 0 14px 40px rgba(0,0,0,0.18);
+    }
+    .progression-modal .box h3 { margin:0 0 12px 0; }
+    .progression-modal .buttons { display:flex; gap:12px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+    .progression-modal button { padding:10px 14px; font-weight:700; border-radius:8px; cursor:pointer; }
+    .btn-continue { background: linear-gradient(90deg,#2ecc71,#21c46a); color:#fff; border:none; }
+    .btn-submit { background: linear-gradient(90deg,#e67e22,#d35400); color:#fff; border:none; }
+  </style>
+</head>
+<body>
+  <h1>Music Ear Training for RCM Level 8 Exam (Sequence Mode)</h1>
+
+  <div id="loginBox">
+    <div><strong>Choose a user (no password required)</strong></div>
+    <div class="user-buttons" style="margin-top:.6rem">
+      <button id="btnBozart" type="button">Login as Bozart</button>
+      <button id="btnTest" type="button">Login as Test</button>
+    </div>
+
+    <div class="other-input">
+      <input id="otherName" placeholder="Other username (e.g. Alice)" />
+      <button id="btnOther">Login as Other</button>
+    </div>
+
+    <div style="margin-top:.6rem">
+      <button id="logoutBtn" class="hidden">Logout</button>
+      <span id="loginMessage" style="margin-left:1rem;color:#444"></span>
+      <span id="serverResponse"></span>
+    </div>
+  </div>
+
+  <div id="controls" class="hidden">
+    <div class="controls-row">
+      <label>Mode:</label>
+      <span class="small">Automatic sequence: Interval (N) → Chord (N) → Progressions (N each)</span>
+
+      <label for="questionCount" style="margin-left:1rem">(Per-section count)</label>
+      <input id="questionCount" type="number" min="1" value="5" style="width:5.2rem" />
+
+      <button id="startBtn">Start Full Sequence</button>
+
+      <div class="user-info" id="currentUserDisplay" style="margin-left:auto;font-weight:600"></div>
+    </div>
+    <div class="small">The quiz will present Interval questions first, then Chord, then multiple Progression sections. The directory on the right shows progress and will become clickable after you finish a section.</div>
+  </div>
+
+  <p id="status" class="small"></p>
+
+  <div id="quiz" class="hidden">
+    <div class="quiz-layout">
+      <div class="quiz-side" id="sideDirectory">
+        <div><strong>Directory</strong></div>
+
+        <div id="intervalSection" class="nav-section">
+          <div class="nav-section-title">1. Interval Identification</div>
+          <div id="intervalRow1" class="nav-grid"></div>
+          <div id="intervalRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="chordSection" class="nav-section">
+          <div class="nav-section-title">2. Chord Identification</div>
+          <div id="chordRow1" class="nav-grid"></div>
+          <div id="chordRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <!-- Progression sections A..O -->
+        <div id="progASection" class="nav-section">
+          <div class="nav-section-title">3. Chord Progression A (Major)</div>
+          <div id="progARow1" class="nav-grid"></div>
+          <div id="progARow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progBSection" class="nav-section">
+          <div class="nav-section-title">4. Chord Progression B (minor)</div>
+          <div id="progBRow1" class="nav-grid"></div>
+          <div id="progBRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progCSection" class="nav-section">
+          <div class="nav-section-title">5. Chord Progression C (Major & minor combo)</div>
+          <div id="progCRow1" class="nav-grid"></div>
+          <div id="progCRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progDSection" class="nav-section">
+          <div class="nav-section-title">6. Chord Progression D (Major)</div>
+          <div id="progDRow1" class="nav-grid"></div>
+          <div id="progDRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progESection" class="nav-section">
+          <div class="nav-section-title">7. Chord Progression E (minor)</div>
+          <div id="progERow1" class="nav-grid"></div>
+          <div id="progERow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progFSection" class="nav-section">
+          <div class="nav-section-title">8. Chord Progression F (Major & minor combo)</div>
+          <div id="progFRow1" class="nav-grid"></div>
+          <div id="progFRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progGSection" class="nav-section">
+          <div class="nav-section-title">9. Chord Progression G (Major)</div>
+          <div id="progGRow1" class="nav-grid"></div>
+          <div id="progGRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progHSection" class="nav-section">
+          <div class="nav-section-title">10. Chord Progression H (minor)</div>
+          <div id="progHRow1" class="nav-grid"></div>
+          <div id="progHRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progISection" class="nav-section">
+          <div class="nav-section-title">11. Chord Progression I (Combo)</div>
+          <div id="progIRow1" class="nav-grid"></div>
+          <div id="progIRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progJSection" class="nav-section">
+          <div class="nav-section-title">12. Chord Progression J (Major)</div>
+          <div id="progJRow1" class="nav-grid"></div>
+          <div id="progJRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progKSection" class="nav-section">
+          <div class="nav-section-title">13. Chord Progression K (minor)</div>
+          <div id="progKRow1" class="nav-grid"></div>
+          <div id="progKRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progLSection" class="nav-section">
+          <div class="nav-section-title">14. Chord Progression L (Combo)</div>
+          <div id="progLRow1" class="nav-grid"></div>
+          <div id="progLRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progMSection" class="nav-section">
+          <div class="nav-section-title">15. Chord Progression M (Major)</div>
+          <div id="progMRow1" class="nav-grid"></div>
+          <div id="progMRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progNSection" class="nav-section">
+          <div class="nav-section-title">16. Chord Progression N (minor)</div>
+          <div id="progNRow1" class="nav-grid"></div>
+          <div id="progNRow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+        <div id="progOSection" class="nav-section">
+          <div class="nav-section-title">17. Chord Progression O (Combo)</div>
+          <div id="progORow1" class="nav-grid"></div>
+          <div id="progORow2" class="nav-grid" style="margin-top:6px"></div>
+        </div>
+
+      </div>
+
+      <div class="quiz-main">
+        <div id="progress"></div>
+
+        <audio id="player" preload="auto" controls></audio>
+
+        <div class="play-row" id="playRow" style="display:none;">
+          <div class="play-left">
+            <div id="bigPlayBtn" title="Play / Pause (tap to play)">
+              <svg id="bigPlayIcon" viewBox="0 0 64 64" aria-hidden="true">
+                <path d="M16 12v40l36-20z"></path>
+              </svg>
+            </div>
+            <div id="playCounter" class="small">Plays: 0</div>
+          </div>
+
+          <div>
+            <div id="bigNextBtn" title="Next / Finish" style="display:none;">
+              <svg id="bigNextIcon" viewBox="0 0 64 64" aria-hidden="true">
+                <path d="M18 12v40l16-20zM34 12v40h12V12z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="choices" id="choices"></div>
+
+        <div style="margin-top:.6rem;">
+          <div id="resultNotice" style="margin-left:auto"></div>
+        </div>
+
+        <p id="feedback"></p>
+        <p id="score" class="hidden"></p>
+
+        <div id="submitInfo" class="hidden"></div>
+
+        <div id="wrongStats" class="hidden"></div>
+
+        <div id="copyContainer" class="hidden">
+          <button id="copyToDocBtn" type="button" title="Copy results & open teacher doc">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-18l-5 5h3v4h4V7h3l-5-5z"/></svg>
+            Copy results & Open Google Doc
+          </button>
+          <span class="small" style="margin-left:.6rem">This copies the results to clipboard and opens the teacher's Google Doc for pasting.</span>
+        </div>
+
+        <div id="reviewNav" style="margin-top:12px" class="hidden">
+          <div><strong>Review</strong></div>
+        </div>
+
+        <div id="combinedReview" class="review-section hidden">
+          <div class="section-title">All Quizzes Review</div>
+          <div id="allReviewContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="celebrationContainer" class="celebration-overlay" style="display:none" aria-hidden="true"></div>
+
+  <!-- hidden cheer audio element (from main branch cheer.mp3) -->
+  <audio id="cheerAudio" preload="auto" src="https://cdn.jsdelivr.net/gh/dustmana8-byte/Auralis@main/cheer.mp3" loop></audio>
+
+  <!-- progression modal container (hidden until needed) -->
+  <div id="progressionModalRoot" style="display:none;"></div>
+
+  <script>
+    // URLs and config
+    const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzS7uWPkIXHP94UG_7yrmLWL0VmArZgt084pgGgyzm2h-5Ad1PBOslSvXKQED_OOdd7HQ/exec";
+    const TEACHER_DOC_URL = "https://docs.google.com/document/d/17P6DXWNvD-umI-M25iDnMJUewdUgNdkCDyruUeWgDts/edit?usp=sharing";
+
+    // mapping and choices
+    const codeToName = {
+      "mi2":"minor 2nd","ma2":"Major 2nd","mi3":"minor 3rd","ma3":"Major 3rd",
+      "p4":"Perfect 4th","a4":"Augmented 4th","p5":"Perfect 5th",
+      "mi6":"minor 6th","ma6":"Major 6th","mi7":"minor 7th","ma7":"Major 7th",
+      "ma":"Major Triad","mi":"minor Triad","a":"Augmented Triad","dom":"Dominant 7th","dim":"diminished 7th"
+    };
+
+    // PROGRESSION sections - keys match filename prefixes (raw key)
+    // Layouts include the changes you requested (progM vertical, progN vertical, progO two-column)
+    const PRE8_SECTIONS = {
+      progA: { id:'progA', title:'Chord Progression A (Major)', rows:[['TSDT'],['TSDb'],['TbSD']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TSDb':'I-IV-V-vi / Major 1-4-5-6','TbSD':'I-vi-IV-V / Major 1-6-4-5'}, allowedPrefixes:['TSDT','TSDb','TbSD'] },
+      progB: { id:'progB', title:'Chord Progression B (minor)', rows:[['tsDt'],['tsDB'],['tBsD']], labels:{'tsDt':'i-iv-V-i / minor 1-4-5-1','tsDB':'i-iv-V-VI / minor 1-4-5-6','tBsD':'i-VI-iv-V / minor 1-6-4-5'}, allowedPrefixes:['tsDt','tsDB','tBsD'] },
+      progC: { id:'progC', title:'Chord Progression C (Combo Major & minor)', rows:[['TSDT','tsDt'],['TSDb','tsDB'],['TbSD','tBsD']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TSDb':'I-IV-V-vi / Major 1-4-5-6','TbSD':'I-vi-IV-V / Major 1-6-4-5','tsDt':'i-iv-V-i / minor 1-4-5-1','tsDB':'i-iv-V-VI / minor 1-4-5-6','tBsD':'i-VI-iv-V / minor 1-6-4-5'}, allowedPrefixes:['TSDT','TSDb','TbSD','tsDt','tsDB','tBsD'] },
+      progD: { id:'progD', title:'Chord Progression D (Major)', rows:[['TSDT'],['TSDb'],['TbST']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TSDb':'I-IV-V-vi / Major 1-4-5-6','TbST':'I-vi-IV-I / Major 1-6-4-1'}, allowedPrefixes:['TSDT','TSDb','TbST'] },
+      progE: { id:'progE', title:'Chord Progression E (minor)', rows:[['tsDt'],['tsDB'],['tBst']], labels:{'tsDt':'i-iv-V-i / minor 1-4-5-1','tsDB':'i-iv-V-VI / minor 1-4-5-6','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['tsDt','tsDB','tBst'] },
+      progF: { id:'progF', title:'Chord Progression F (Combo Major & minor)', rows:[['TSDT','tsDt'],['TSDb','tsDB'],['TbST','tBst']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TSDb':'I-IV-V-vi / Major 1-4-5-6','TbST':'I-vi-IV-I / Major 1-6-4-1','tsDt':'i-iv-V-i / minor 1-4-5-1','tsDB':'i-iv-V-VI / minor 1-4-5-6','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['TSDT','TSDb','TbST','tsDt','tsDB','tBst'] },
+      progG: { id:'progG', title:'Chord Progression G (Major)', rows:[['TSDT'],['TbSD'],['TbST']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TbSD':'I-vi-IV-V / Major 1-6-4-5','TbST':'I-vi-IV-I / Major 1-6-4-1'}, allowedPrefixes:['TSDT','TbSD','TbST'] },
+      progH: { id:'progH', title:'Chord Progression H (minor)', rows:[['tsDt'],['tBsD'],['tBst']], labels:{'tsDt':'i-iv-V-i / minor 1-4-5-1','tBsD':'i-VI-iv-V / minor 1-6-4-5','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['tsDt','tBsD','tBst'] },
+      progI: { id:'progI', title:'Chord Progression I (Combo Major & minor)', rows:[['TSDT','tsDt'],['TbSD','tBsD'],['TbST','tBst']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TbSD':'I-vi-IV-V / Major 1-6-4-5','TbST':'I-vi-IV-I / Major 1-6-4-1','tsDt':'i-iv-V-i / minor 1-4-5-1','tBsD':'i-VI-iv-V / minor 1-6-4-5','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['TSDT','TbSD','TbST','tsDt','tBsD','tBst'] },
+      progJ: { id:'progJ', title:'Chord Progression J (Major)', rows:[['TSDb'],['TbSD'],['TbST']], labels:{'TSDb':'I-IV-V-vi / Major 1-4-5-6','TbSD':'I-vi-IV-V / Major 1-6-4-5','TbST':'I-vi-IV-I / Major 1-6-4-1'}, allowedPrefixes:['TSDb','TbSD','TbST'] },
+      progK: { id:'progK', title:'Chord Progression K (minor)', rows:[['tsDB'],['tBsD'],['tBst']], labels:{'tsDB':'i-iv-V-VI / minor 1-4-5-6','tBsD':'i-VI-iv-V / minor 1-6-4-5','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['tsDB','tBsD','tBst'] },
+      progL: { id:'progL', title:'Chord Progression L (Combo Major & minor)', rows:[['TSDb','tsDB'],['TbSD','tBsD'],['TbST','tBst']], labels:{'TSDb':'I-IV-V-vi / Major 1-4-5-6','TbSD':'I-vi-IV-V / Major 1-6-4-5','TbST':'I-vi-IV-I / Major 1-6-4-1','tsDB':'i-iv-V-VI / minor 1-4-5-6','tBsD':'i-VI-iv-V / minor 1-6-4-5','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['TSDb','TbSD','TbST','tsDB','tBsD','tBst'] },
+      progM: { id:'progM', title:'Chord Progression M (Major)', rows:[['TSDT'],['TSDb'],['TbSD'],['TbST']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TSDb':'I-IV-V-vi / Major 1-4-5-6','TbSD':'I-vi-IV-V / Major 1-6-4-5','TbST':'I-vi-IV-I / Major 1-6-4-1'}, allowedPrefixes:['TSDT','TSDb','TbSD','TbST'] },
+      progN: { id:'progN', title:'Chord Progression N (minor)', rows:[['tsDt'],['tsDB'],['tBsD'],['tBst']], labels:{'tsDt':'i-iv-V-i / minor 1-4-5-1','tsDB':'i-iv-V-VI / minor 1-4-5-6','tBsD':'i-VI-iv-V / minor 1-6-4-5','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['tsDt','tsDB','tBsD','tBst'] },
+      progO: { id:'progO', title:'Chord Progression O (Combo Major & minor)', rows:[['TSDT','tsDt'],['TSDb','tsDB'],['TbSD','tBsD'],['TbST','tBst']], labels:{'TSDT':'I-IV-V-I / Major 1-4-5-1','TSDb':'I-IV-V-vi / Major 1-4-5-6','TbSD':'I-vi-IV-V / Major 1-6-4-5','TbST':'I-vi-IV-I / Major 1-6-4-1','tsDt':'i-iv-V-i / minor 1-4-5-1','tsDB':'i-iv-V-VI / minor 1-4-5-6','tBsD':'i-VI-iv-V / minor 1-6-4-5','tBst':'i-VI-iv-i / minor 1-6-4-1'}, allowedPrefixes:['TSDT','TSDb','TbSD','TbST','tsDt','tsDB','tBsD','tBst'] }
+    };
+
+    const INTERVAL_CHOICE_ROWS = [
+      ["mi2", "ma2"],
+      ["mi3", "ma3"],
+      ["p4", "p5"],
+      ["a4"],
+      ["mi6", "ma6"],
+      ["mi7", "ma7"]
+    ];
+    const CHORD_CHOICE_ROWS = [
+      ["ma", "mi"],
+      ["a"],
+      ["dom", "dim"]
+    ];
+
+    const ACCOUNTS_KEY = "auralis_accounts_v1";
+    const sessionResults = {};
+    const lastQuestionsByType = {};
+
+    // DOM refs
+    const btnBozart = document.getElementById('btnBozart');
+    const btnTest = document.getElementById('btnTest');
+    const btnOther = document.getElementById('btnOther');
+    const otherName = document.getElementById('otherName');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const loginMessage = document.getElementById('loginMessage');
+    const serverResponseEl = document.getElementById('serverResponse');
+    const controls = document.getElementById('controls');
+    const currentUserDisplay = document.getElementById('currentUserDisplay');
+    const startBtn = document.getElementById('startBtn');
+    const statusEl = document.getElementById('status');
+    const questionCountInput = document.getElementById('questionCount');
+
+    const choicesDiv = document.getElementById('choices');
+    const player = document.getElementById('player');
+    const bigPlayBtn = document.getElementById('bigPlayBtn');
+    const bigPlayIcon = document.getElementById('bigPlayIcon');
+    const playCounterEl = document.getElementById('playCounter');
+    const playRow = document.getElementById('playRow');
+    const bigNextBtn = document.getElementById('bigNextBtn');
+    const progressEl = document.getElementById('progress');
+    const feedback = document.getElementById('feedback');
+    const scoreP = document.getElementById('score');
+    const wrongStatsEl = document.getElementById('wrongStats');
+    const submitInfo = document.getElementById('submitInfo');
+    const copyContainer = document.getElementById('copyContainer');
+    const copyToDocBtn = document.getElementById('copyToDocBtn');
+
+    const progressionModalRoot = document.getElementById('progressionModalRoot');
+    const cheerAudio = document.getElementById('cheerAudio');
+
+    // navigation grids refs (many)
+    const intervalRow1 = document.getElementById('intervalRow1');
+    const intervalRow2 = document.getElementById('intervalRow2');
+    const chordRow1 = document.getElementById('chordRow1');
+    const chordRow2 = document.getElementById('chordRow2');
+
+    const progRows = {};
+    Object.keys(PRE8_SECTIONS).forEach(k=>{
+      progRows[k] = {
+        r1: document.getElementById(`${k}Row1`),
+        r2: document.getElementById(`${k}Row2`)
+      };
+    });
+
+    const reviewNav = document.getElementById('reviewNav');
+    const combinedReview = document.getElementById('combinedReview');
+    const allReviewContainer = document.getElementById('allReviewContainer');
+
+    const celebrationContainer = document.getElementById('celebrationContainer');
+
+    // helpers
+    function loadAccounts(){ try{ return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "{}"); }catch(e){return{}} }
+    function saveAccounts(obj){ localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(obj)); }
+
+    (function ensureDemoAccounts(){
+      const a = loadAccounts();
+      if (!a["Bozart"]) a["Bozart"] = { results: [] };
+      if (!a["Test"]) a["Test"] = { results: [] };
+      saveAccounts(a);
+    })();
+
+    // login
+    let currentUser = null;
+    btnBozart.addEventListener('click', ()=> loginAs('Bozart'));
+    btnTest.addEventListener('click', ()=> loginAs('Test'));
+    btnOther.addEventListener('click', ()=> {
+      const v = (otherName.value || "").trim();
+      if (!v) { alert('Enter a username first'); return; }
+      loginAs(v);
+    });
+    logoutBtn.addEventListener('click', ()=> {
+      currentUser = null;
+      loginMessage.textContent = "Logged out.";
+      serverResponseEl.textContent = "";
+      btnBozart.disabled = false; btnTest.disabled = false; btnOther.disabled = false; otherName.disabled = false;
+      logoutBtn.classList.add('hidden');
+      controls.classList.add('hidden');
+      currentUserDisplay.textContent = "";
+      document.getElementById('quiz').classList.add('hidden');
+      for (const k of ['interval','chord', ...Object.keys(PRE8_SECTIONS)]) {
+        sessionResults[k] = null;
+        lastQuestionsByType[k] = null;
+      }
+    });
+
+    function loginAs(name){
+      const accounts = loadAccounts();
+      if (!accounts[name]) accounts[name] = { results: [] };
+      saveAccounts(accounts);
+      currentUser = name;
+      loginMessage.textContent = `Logged in as ${name}.`;
+      serverResponseEl.textContent = "";
+      btnBozart.disabled = true; btnTest.disabled = true; btnOther.disabled = true; otherName.disabled = true;
+      logoutBtn.classList.remove('hidden');
+      controls.classList.remove('hidden');
+      currentUserDisplay.textContent = `User: ${currentUser}`;
+      // require 'Progression' branch specifically for progression parts
+      if (filesLoadedByBranch['audio'] && filesLoadedByBranch['Chord'] && filesLoadedByBranch['Progression']) startBtn.disabled = false;
+    }
+
+    // file helpers
+    function extractPrefixes(filename){
+      const base = filename.split('/').pop();
+      const raw = (base.split('_')[0] || "");
+      const lower = raw.toLowerCase();
+      return { raw, lower };
+    }
+    function jsDelivrUrlForBranch(branch, filename){
+      return `https://cdn.jsdelivr.net/gh/dustmana8-byte/Auralis@${encodeURIComponent(branch)}/${encodeURIComponent(filename)}`;
+    }
+    function shuffle(a){ for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+
+    // load files
+    const allFilesByBranch = {};
+    const filesLoadedByBranch = {};
+    async function loadFiles(branch){
+      statusEl.textContent = `Loading audio files for branch "${branch}"...`;
+      try{
+        const api = `https://api.github.com/repos/dustmana8-byte/Auralis/contents?ref=${encodeURIComponent(branch)}`;
+        const r = await fetch(api);
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        const data = await r.json();
+        const mp3s = data.filter(f => f.type === "file" && f.name.toLowerCase().endsWith('.mp3'));
+        const files = mp3s.map(f => {
+          const { raw, lower } = extractPrefixes(f.name);
+          return { name: f.name, url: jsDelivrUrlForBranch(branch, f.name), rawKey: raw, rawKeyLower: lower, key: lower, displayName: f.name };
+        }).filter(x => x.rawKey);
+        if (files.length === 0) {
+          statusEl.textContent = `No usable mp3 files found in branch ${branch}.`;
+          filesLoadedByBranch[branch] = false;
+          return;
+        }
+        allFilesByBranch[branch] = files;
+        filesLoadedByBranch[branch] = true;
+        statusEl.textContent = `Loaded ${files.length} audio files from branch "${branch}".`;
+        // enable start if user logged in and required branches are loaded (now require Progression)
+        if (currentUser && filesLoadedByBranch['audio'] && filesLoadedByBranch['Chord'] && filesLoadedByBranch['Progression']) startBtn.disabled = false;
+      } catch(err){
+        statusEl.textContent = "Failed to load audio files: " + err.message;
+        console.error(err);
+        filesLoadedByBranch[branch] = false;
+      }
+    }
+
+    (async function init(){
+      startBtn.disabled = true;
+      await loadFiles('audio');
+      loadFiles('Chord').catch(()=>{});
+      // explicitly load the 'Progression' branch (the branch you requested)
+      loadFiles('Progression').catch(()=>{});
+      loadFiles('Progression-Pre8').catch(()=>{});
+    })();
+
+    // preload
+    const audioContext = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+    const preloadedMap = new Map();
+    async function ensureBuffered(url){
+      if (preloadedMap.has(url)) return preloadedMap.get(url);
+      try {
+        const resp = await fetch(url, {mode: 'cors'});
+        if (!resp.ok) throw new Error('fetch failed ' + resp.status);
+        const arrayBuffer = await resp.arrayBuffer();
+        if (audioContext && audioContext.state !== 'suspended') {
+          audioContext.decodeAudioData(arrayBuffer.slice(0), ()=>{}, ()=>{});
+        }
+        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+        const objectUrl = URL.createObjectURL(blob);
+        preloadedMap.set(url, objectUrl);
+        return objectUrl;
+      } catch(err) {
+        console.warn('Preload failed, fallback to original URL', err);
+        return url;
+      }
+    }
+
+    // quiz state
+    let questions = [], currentIdx = 0, presentedCount = 0, quizFinished = false;
+
+    // build questions with correctKey normalized where needed
+    function buildCombinedQuestions(perSectionCount){
+      questions = [];
+      function pickFromBranch(branch, count, sectionName, allowedPrefixes = null, keyMode = 'raw'){
+        let pool = (allFilesByBranch[branch] || []).slice();
+        if (allowedPrefixes && allowedPrefixes.length){
+          // prefer exact-case matches first
+          let filtered = pool.filter(f => allowedPrefixes.includes(f.rawKey));
+          if (filtered.length === 0) {
+            const low = allowedPrefixes.map(p=>p.toLowerCase());
+            filtered = pool.filter(f => low.includes(f.rawKeyLower));
+          }
+          pool = filtered.slice();
+        }
+        pool = shuffle(pool);
+        if (pool.length === 0) pool = shuffle((allFilesByBranch[branch] || []).slice());
+        for (let i=0;i<count;i++){
+          if (pool.length===0) break;
+          const file = pool.pop();
+          let correctKey;
+          if (keyMode === 'lower') correctKey = file.rawKeyLower;
+          else correctKey = file.rawKey;
+          const idxInSection = i + 1;
+          questions.push({ section: sectionName, file, correctKey, selectedKey: null, playCount: 0, _answered: false, indexInSection: idxInSection });
+        }
+      }
+
+      // interval: use 'audio' branch and normalized lower-case keys (so they match choice keys like 'ma2')
+      pickFromBranch('audio', perSectionCount, 'interval', null, 'lower');
+      // chord: use 'Chord' branch and lower-case keys
+      pickFromBranch('Chord', perSectionCount, 'chord', null, 'lower');
+
+      // IMPORTANT: use 'Progression' branch specifically for all progression parts (per your request).
+      const progBranch = 'Progression';
+
+      // progression parts: use PRE8_SECTIONS allowedPrefixes; keyMode raw to preserve case-sensitive prefixes used in PRE8_SECTIONS
+      Object.keys(PRE8_SECTIONS).forEach(secKey=>{
+        const sec = PRE8_SECTIONS[secKey];
+        pickFromBranch(progBranch, perSectionCount, secKey, sec.allowedPrefixes, 'raw');
+      });
+
+      // Assign overall sequence index for each question so results can reference exact sequence positions
+      questions.forEach((q, i) => { q.overallIndex = i + 1; });
+    }
+
+    startBtn.addEventListener('click', ()=>{
+      if (!currentUser) { alert("Please login first"); return; }
+      const perSectionCount = Math.max(1, parseInt(questionCountInput.value,10) || 5);
+      // enforce that progression parts come from the 'Progression' branch
+      if (!filesLoadedByBranch['audio'] || !filesLoadedByBranch['Chord'] || !filesLoadedByBranch['Progression']) {
+        alert('Audio files for required branches (audio, Chord, Progression) are not ready yet. Please wait a moment for loading to finish.');
+        return;
+      }
+      buildCombinedQuestions(perSectionCount);
+      currentIdx = 0;
+      presentedCount = 1;
+      quizFinished = false;
+      document.getElementById('quiz').classList.remove('hidden');
+      scoreP.classList.add('hidden');
+      reviewNav.classList.remove('hidden');
+      wrongStatsEl.classList.remove('hidden');
+      submitInfo.classList.add('hidden');
+      copyContainer.classList.add('hidden');
+      combinedReview.classList.add('hidden');
+
+      populateSequenceNav(perSectionCount);
+
+      playRow.style.display = 'flex';
+      document.getElementById('bigNextBtn').style.display = 'none';
+
+      ensureBuffered(questions[0].file.url).then(objUrl => {
+        player.src = objUrl || questions[0].file.url;
+        player.load();
+      }).catch(()=>{ player.src = questions[0].file.url; player.load(); });
+
+      renderQuestion(currentIdx, false);
+      updateNavPresentation();
+    });
+
+    function makeNavItem(label, idx){
+      const d = document.createElement('div');
+      d.className = 'nav-item not-presented';
+      d.textContent = label;
+      d.dataset.index = idx;
+      return d;
+    }
+
+    function populateSequenceNav(perSectionCount){
+      // clear all nav grids: interval/chord + all progression section row elements
+      [intervalRow1, intervalRow2, chordRow1, chordRow2].forEach(r=>{ if (r) r.innerHTML = ''; });
+      Object.keys(PRE8_SECTIONS).forEach(secKey=>{
+        const r1 = progRows[secKey].r1;
+        const r2 = progRows[secKey].r2;
+        if (r1) r1.innerHTML = '';
+        if (r2) r2.innerHTML = '';
+      });
+
+      // counts per section
+      const counts = {};
+      counts.interval = questions.filter(q=>q.section==='interval').length;
+      counts.chord = questions.filter(q=>q.section==='chord').length;
+      Object.keys(PRE8_SECTIONS).forEach(secKey=>{
+        counts[secKey] = questions.filter(q=>q.section===secKey).length;
+      });
+
+      let idx = 0;
+      for (let i=0;i<counts.interval;i++){
+        const label = `1.${i+1}`;
+        const el = makeNavItem(label, idx++);
+        if (i < Math.ceil(counts.interval/2)) intervalRow1.appendChild(el); else intervalRow2.appendChild(el);
+      }
+      for (let i=0;i<counts.chord;i++){
+        const label = `2.${i+1}`;
+        const el = makeNavItem(label, idx++);
+        if (i < Math.ceil(counts.chord/2)) chordRow1.appendChild(el); else chordRow2.appendChild(el);
+      }
+
+      // progression sections A..O dynamically
+      const progKeys = Object.keys(PRE8_SECTIONS);
+      progKeys.forEach((secKey, si)=>{
+        const count = counts[secKey] || 0;
+        const row1 = progRows[secKey].r1;
+        const row2 = progRows[secKey].r2;
+        for (let i=0;i<count;i++){
+          const label = `${3 + si}.${i+1}`; // numbering will continue; label not critical
+          const el = makeNavItem(label, idx++);
+          if (i < Math.ceil(count/2)) {
+            if (row1) row1.appendChild(el);
+          } else {
+            if (row2) row2.appendChild(el);
+          }
+        }
+      });
+
+      updateNavPresentation();
+    }
+
+    function updateNavPresentation(){
+      // iterate all nav-grid children
+      document.querySelectorAll('.nav-grid').forEach(container=>{
+        Array.from(container.children).forEach(node=>{
+          const idx = parseInt(node.dataset.index,10);
+          node.classList.remove('presented','not-presented','current','correct','wrong');
+          const q = questions[idx];
+          if (quizFinished){
+            if (!q || !q.selectedKey) {
+              node.classList.add('not-presented');
+              node.style.cursor = 'default';
+            } else {
+              if (q.selectedKey === q.correctKey) { node.classList.add('correct'); node.style.cursor='pointer'; }
+              else { node.classList.add('wrong'); node.style.cursor='pointer'; }
+            }
+          } else {
+            if (idx < presentedCount) { node.classList.add('presented'); node.style.cursor='default'; } else { node.classList.add('not-presented'); node.style.cursor='default'; }
+          }
+        });
+      });
+      updateNavHighlight();
+    }
+    function updateNavHighlight(){
+      document.querySelectorAll('.nav-item.current').forEach(n=>n.classList.remove('current'));
+      const cur = document.querySelector(`[data-index="${currentIdx}"]`);
+      if (cur) cur.classList.add('current');
+    }
+
+    function updatePlayCounter(){
+      const q = questions[currentIdx];
+      playCounterEl.textContent = `Plays: ${q ? (q.playCount || 0) : 0}`;
+    }
+
+    function showTopNext(){ document.getElementById('bigNextBtn').style.display = 'inline-flex'; }
+    function hideTopNext(){ document.getElementById('bigNextBtn').style.display = 'none'; }
+
+    // Create a choice button
+    function makeChoiceButton(key, label){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = label;
+      btn.dataset.key = key;
+      return btn;
+    }
+
+    // -- Helper functions added/ensured so results copy, review and celebration work reliably --
+    async function sendResultToSheet(payload){
+      if (!SHEET_WEBAPP_URL) return false;
+      try {
+        const r = await fetch(SHEET_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        return r.ok;
+      } catch (e) {
+        console.warn('sendResultToSheet failed', e);
+        return false;
+      }
+    }
+
+    // copy results: adjust blank-line handling and prepend user & timestamp
+    async function copyResultsAndOpenDocCombined(docUrl){
+      try {
+        let raw = wrongStatsEl ? (wrongStatsEl.innerText || wrongStatsEl.textContent || "") : "";
+        raw = raw.replace(/\r\n/g, '\n');
+        const lines = raw.split('\n');
+
+        const out = [];
+        for (let i=0;i<lines.length;i++){
+          const line = lines[i];
+          const trimmed = (line || '').trim();
+          if (trimmed.startsWith('Wrong (overall sequence numbers):')) {
+            // remove previous trailing blank line (if any)
+            while (out.length > 0 && out[out.length-1].trim() === '') out.pop();
+            // push this line
+            out.push(line);
+            // add exactly one blank line after
+            out.push('');
+          } else {
+            out.push(line);
+          }
+        }
+        let processedText = out.join('\n');
+
+        // Prepend user name and timestamp (Edmonton)
+        const timestamp = getLatestSessionTimestamp() || getEdmontonTimestamp();
+        const header = `Submitted by: ${currentUser || '(unknown user)'}  —  Time: ${timestamp}\n\n`;
+        processedText = header + processedText;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(processedText);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = processedText;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        window.open(docUrl || TEACHER_DOC_URL, '_blank');
+        serverResponseEl.textContent = "Results copied to clipboard ✓";
+        setTimeout(()=> serverResponseEl.textContent = "", 3000);
+      } catch (e) {
+        console.warn(e);
+        alert('Copy failed: ' + (e && e.message ? e.message : e));
+      }
+    }
+
+    function getLatestSessionTimestamp(){
+      try {
+        const keys = Object.keys(sessionResults || {});
+        for (let k of keys) {
+          const rec = sessionResults[k];
+          if (rec && rec.date) return rec.date;
+        }
+        return null;
+      } catch(e){ return null; }
+    }
+
+    function makeDirectoryInteractiveAndColor(){
+      document.querySelectorAll('.nav-item').forEach(node=>{
+        const idx = parseInt(node.dataset.index,10);
+        node.onclick = null;
+        node.style.cursor = 'pointer';
+        node.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          if (!questions[idx]) return;
+          currentIdx = idx;
+          renderQuestion(idx, true);
+          updateNavPresentation();
+          updateNavHighlight();
+        });
+      });
+
+      // Immediately apply coloring if quizFinished (fix for delayed coloring)
+      if (quizFinished) {
+        document.querySelectorAll('.nav-grid').forEach(container=>{
+          Array.from(container.children).forEach(node=>{
+            const idx = parseInt(node.dataset.index,10);
+            const q = questions[idx];
+            node.classList.remove('correct','wrong','presented','not-presented');
+            if (!q || !q.selectedKey) {
+              node.classList.add('not-presented');
+            } else {
+              if (q.selectedKey === q.correctKey) node.classList.add('correct');
+              else node.classList.add('wrong');
+            }
+          });
+        });
+      }
+    }
+
+    function populateCombinedReview(){
+      allReviewContainer.innerHTML = '';
+      const keys = Object.keys(sessionResults).filter(k => sessionResults[k] && sessionResults[k].total > 0);
+      if (keys.length === 0) {
+        allReviewContainer.textContent = 'No review data available.';
+        return;
+      }
+      keys.forEach(k=>{
+        const rec = sessionResults[k];
+        const secTitle = (k === 'interval') ? 'Part 1: Interval' : (k==='chord') ? 'Part 2: Chord' :
+                         (PRE8_SECTIONS[k] ? PRE8_SECTIONS[k].title : k);
+        const div = document.createElement('div');
+        div.style.marginBottom = '10px';
+        div.innerHTML = `<div style="font-weight:700">${secTitle} — Score: ${rec.score} / ${rec.total}</div>`;
+        const list = document.createElement('div');
+        list.style.whiteSpace = 'pre-wrap';
+        list.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace";
+        rec.questionDetails.forEach(qd=>{
+          const correct = labelForKey(k, qd.correctKey);
+          const selected = qd.selectedKey ? labelForKey(k, qd.selectedKey) : '(no answer)';
+          list.innerHTML += `Q${qd.overallIndex} (${qd.indexInSection}): Correct: ${correct} — Selected: ${selected} — Plays: ${qd.playCount}\n`;
+        });
+        div.appendChild(list);
+        allReviewContainer.appendChild(div);
+      });
+    }
+
+    // render question
+    async function renderQuestion(idx, reviewing=false){
+      const q = questions[idx];
+      const sameBefore = questions.slice(0, idx).filter(x=>x.section===q.section).length;
+      const sectionPos = sameBefore + 1;
+      const sectionTotal = questions.filter(x=>x.section===q.section).length;
+      const sectionLabel = (q.section === 'interval') ? 'Interval' : (q.section === 'chord') ? 'Chord' :
+        (PRE8_SECTIONS[q.section] ? PRE8_SECTIONS[q.section].title : q.section);
+
+      progressEl.textContent = `${sectionLabel.toUpperCase()} Question ${sectionPos} / ${sectionTotal}  (Overall ${idx+1} / ${questions.length})`;
+      feedback.textContent = "";
+      choicesDiv.innerHTML = "";
+      hideTopNext();
+
+      playRow.style.display = 'flex';
+
+      try {
+        const objUrl = await ensureBuffered(q.file.url);
+        player.src = objUrl || q.file.url;
+        player.load();
+      } catch(e){
+        player.src = q.file.url;
+        player.load();
+      }
+
+      const next = questions[idx+1];
+      if (next) ensureBuffered(next.file.url).catch(()=>{});
+
+      updatePlayCounter();
+
+      if (q.section.startsWith('prog')) {
+        const s = PRE8_SECTIONS[q.section];
+        s.rows.forEach(row=>{
+          let rowDiv;
+          if (row.length === 1) rowDiv = document.createElement('div'), rowDiv.className = 'choice-row vertical';
+          else if (row.length === 2) rowDiv = document.createElement('div'), rowDiv.className = 'choice-row two';
+          else rowDiv = document.createElement('div'), rowDiv.className = 'choice-row';
+          row.forEach(k=>{
+            const key = k;
+            const label = s.labels[key] || key;
+            const btn = makeChoiceButton(key, label);
+            if (reviewing || q.selectedKey !== null || quizFinished){
+              btn.disabled = true;
+              if (quizFinished){
+                if (key === q.correctKey) btn.classList.add('correct');
+                if (q.selectedKey && key === q.selectedKey && q.selectedKey !== q.correctKey) btn.classList.add('wrong');
+              } else {
+                if (key === q.correctKey) btn.classList.add('correct');
+              }
+            } else {
+              btn.addEventListener('click', ()=>{
+                q.selectedKey = key;
+                q._answered = true;
+                if (key === q.correctKey) btn.classList.add('correct'); else btn.classList.add('wrong');
+                Array.from(rowDiv.parentElement.querySelectorAll('button')).forEach(b=>{
+                  b.disabled = true;
+                  if (b.dataset.key === q.correctKey) b.classList.add('correct');
+                });
+                showTopNext();
+              });
+            }
+            rowDiv.appendChild(btn);
+          });
+          choicesDiv.appendChild(rowDiv);
+        });
+      } else if (q.section === 'chord') {
+        CHORD_CHOICE_ROWS.forEach(row=>{
+          const rowDiv = document.createElement('div'); rowDiv.className = (row.length===1) ? 'choice-row single' : 'choice-row two';
+          row.forEach(k=>{
+            const btn = makeChoiceButton(k, codeToName[k] || k);
+            if (reviewing || q.selectedKey !== null || quizFinished){
+              btn.disabled = true;
+              if (quizFinished){
+                if (k === q.correctKey) btn.classList.add('correct');
+                if (q.selectedKey && k === q.selectedKey && q.selectedKey !== q.correctKey) btn.classList.add('wrong');
+              } else {
+                if (k === q.correctKey) btn.classList.add('correct');
+              }
+            } else {
+              btn.addEventListener('click', ()=>{
+                q.selectedKey = k;
+                q._answered = true;
+                if (k === q.correctKey) btn.classList.add('correct'); else btn.classList.add('wrong');
+                Array.from(rowDiv.parentElement.querySelectorAll('button')).forEach(b=>{
+                  b.disabled = true;
+                  if (b.dataset.key === q.correctKey) b.classList.add('correct');
+                });
+                showTopNext();
+              });
+            }
+            rowDiv.appendChild(btn);
+          });
+          choicesDiv.appendChild(rowDiv);
+        });
+      } else { // interval
+        INTERVAL_CHOICE_ROWS.forEach(row=>{
+          const rowDiv = document.createElement('div'); rowDiv.className = (row.length===1) ? 'choice-row single' : 'choice-row two';
+          row.forEach(k=>{
+            const btn = makeChoiceButton(k, codeToName[k] || k);
+            if (reviewing || q.selectedKey !== null || quizFinished){
+              btn.disabled = true;
+              if (quizFinished){
+                if (k === q.correctKey) btn.classList.add('correct');
+                if (q.selectedKey && k === q.selectedKey && q.selectedKey !== q.correctKey) btn.classList.add('wrong');
+              } else {
+                if (k === q.correctKey) btn.classList.add('correct');
+              }
+            } else {
+              btn.addEventListener('click', ()=>{
+                q.selectedKey = k;
+                q._answered = true;
+                if (k === q.correctKey) btn.classList.add('correct'); else btn.classList.add('wrong');
+                Array.from(rowDiv.parentElement.querySelectorAll('button')).forEach(b=>{
+                  b.disabled = true;
+                  if (b.dataset.key === q.correctKey) b.classList.add('correct');
+                });
+                showTopNext();
+              });
+            }
+            rowDiv.appendChild(btn);
+          });
+          choicesDiv.appendChild(rowDiv);
+        });
+      }
+
+      if (idx >= presentedCount) presentedCount = idx + 1;
+      updateNavPresentation();
+      updateNavHighlight();
+
+      if (!reviewing) {
+        try { await player.play().catch(()=>{}); } catch(e){ }
+      }
+    }
+
+    // audio events
+    player.addEventListener('play', ()=>{
+      const q = questions[currentIdx];
+      if (!q) return;
+      if (!quizFinished && !q._answered) {
+        q.playCount = (q.playCount || 0) + 1;
+        updatePlayCounter();
+      }
+      bigPlayIcon.innerHTML = '<path d="M20 12h8v40h-8zM36 12h8v40h-8z"></path>';
+    });
+    player.addEventListener('pause', ()=> { bigPlayIcon.innerHTML = '<path d="M16 12v40l36-20z"></path>'; });
+    player.addEventListener('ended', ()=> { bigPlayIcon.innerHTML = '<path d="M16 12v40l36-20z"></path>'; });
+
+    bigPlayBtn.addEventListener('click', async ()=>{
+      try { if (player.paused) await player.play(); else player.pause(); } catch(err){ alert('Playback failed: ' + (err && err.message ? err.message : err)); }
+    });
+
+    // Helper: determine if current question is last in its section
+    function isLastQuestionInSection(idx){
+      const q = questions[idx];
+      if (!q) return false;
+      const section = q.section;
+      // find last index in questions where q.section === section
+      for (let i = questions.length - 1; i >= 0; i--) {
+        if (questions[i].section === section) {
+          return (i === idx);
+        }
+      }
+      return false;
+    }
+
+    // Helper: get progression section order array and index of a progression key
+    const progressionKeys = Object.keys(PRE8_SECTIONS); // order preserved
+    function progressionIndexOfSectionKey(secKey){
+      return progressionKeys.indexOf(secKey); // 0-based within progression sections
+    }
+    const totalProgressionParts = progressionKeys.length; // should be 15 (A..O)
+
+    // Show modal prompting user to continue or submit when finishing certain progression parts
+    function showProgressionPrompt(afterSectionKey, onContinue, onSubmit){
+      // compute how many progression parts remain after this section
+      const idx = progressionIndexOfSectionKey(afterSectionKey);
+      const remaining = totalProgressionParts - (idx + 1); // parts remaining after this one
+      let titleText;
+      if (remaining === 1) titleText = `There is the FINAL Chord Progression Part Remaining`;
+      else titleText = `There are still ${remaining} Chord Progression Parts Remaining`;
+
+      const root = progressionModalRoot;
+      root.innerHTML = ''; root.style.display = 'block';
+      const modal = document.createElement('div');
+      modal.className = 'progression-modal';
+      modal.innerHTML = `<div class="box">
+        <h3>${titleText}</h3>
+        <div style="font-size:14px;color:#333">Choose an action:</div>
+        <div class="buttons">
+          <button class="btn-continue">Go to the next Progression Parts (Optional)</button>
+          <button class="btn-submit">Submit and Finish the Exam</button>
+        </div>
+      </div>`;
+      root.appendChild(modal);
+
+      const btnContinue = modal.querySelector('.btn-continue');
+      const btnSubmit = modal.querySelector('.btn-submit');
+
+      btnContinue.addEventListener('click', ()=>{
+        root.innerHTML = ''; root.style.display = 'none';
+        onContinue && onContinue();
+      });
+      btnSubmit.addEventListener('click', ()=>{
+        root.innerHTML = ''; root.style.display = 'none';
+        onSubmit && onSubmit();
+      });
+    }
+
+    // The main Next handler intercepts when the current question was the last of a progression section
+    async function handleTopNext(){
+      document.getElementById('bigNextBtn').style.display = 'none';
+      const curIdx = currentIdx;
+      // If current question is the last in its section and that section is a progression section, and there are later progression sections remaining -> show prompt
+      if (isLastQuestionInSection(curIdx)) {
+        const curSection = questions[curIdx].section;
+        if (curSection.startsWith('prog')) {
+          const progIdx = progressionIndexOfSectionKey(curSection);
+
+          // --- CHANGE: only start prompting from after progF (Part 8) ---
+          const promptStartIdx = progressionIndexOfSectionKey('progF'); // zero-based index of progF
+          if (progIdx >= promptStartIdx && progIdx >= 0 && progIdx < totalProgressionParts - 1) {
+            // Show prompt with remaining count; continue -> go to next question (first of next section)
+            showProgressionPrompt(curSection,
+              // onContinue
+              async ()=>{
+                // proceed to next overall question
+                currentIdx++;
+                const q = questions[currentIdx];
+                ensureBuffered(q.file.url).then(objUrl=>{
+                  player.src = objUrl || q.file.url;
+                  player.load();
+                }).catch(()=>{ player.src = q.file.url; player.load(); });
+                renderQuestion(currentIdx, false);
+              },
+              // onSubmit
+              async ()=>{
+                // submit and finalize including only questions up to curIdx
+                presentedCount = curIdx + 1;
+                await finalizeCombinedQuiz(curIdx);
+              });
+            return;
+          }
+        }
+      }
+
+      // default flow: if at last question overall, finalize
+      if (currentIdx >= questions.length - 1) { await finalizeCombinedQuiz(); return; }
+
+      currentIdx++;
+      const q = questions[currentIdx];
+      ensureBuffered(q.file.url).then(objUrl=>{
+        player.src = objUrl || q.file.url;
+        player.load();
+      }).catch(()=>{ player.src = q.file.url; player.load(); });
+      renderQuestion(currentIdx, false);
+    }
+    bigNextBtn.addEventListener('click', handleTopNext);
+
+    // Edmonton timestamp
+    function getEdmontonTimestamp(){
+      try {
+        const opts = { timeZone: 'America/Edmonton', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false };
+        const parts = new Intl.DateTimeFormat('en-CA', opts).formatToParts(new Date());
+        const map = {};
+        parts.forEach(p => { if (p.type !== 'literal') map[p.type] = p.value; });
+        const tz = 'MT';
+        return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second} ${tz}`;
+      } catch(e){
+        return new Date().toISOString();
+      }
+    }
+
+    // finalizeCombinedQuiz can accept an optional cutoffIdx (inclusive) to only include questions up to that overall index
+    async function finalizeCombinedQuiz(cutoffIdx = null){
+      quizFinished = true;
+      const effectiveCutoff = (typeof cutoffIdx === 'number') ? cutoffIdx : (questions.length - 1);
+      // set presentedCount accordingly so nav rendering only highlights up to cutoff
+      presentedCount = effectiveCutoff + 1;
+
+      // Build dynamic sections object for results collection
+      const sections = {};
+      sections.interval = { score:0, total:0, questionDetails:[], wrongCounts:{} };
+      sections.chord = { score:0, total:0, questionDetails:[], wrongCounts:{} };
+      Object.keys(PRE8_SECTIONS).forEach(secKey=>{
+        sections[secKey] = { score:0, total:0, questionDetails:[], wrongCounts:{} };
+      });
+
+      // iterate only up to effectiveCutoff
+      for (let overallIdx = 0; overallIdx <= effectiveCutoff; overallIdx++){
+        const q = questions[overallIdx];
+        if (!q) continue;
+        const sec = sections[q.section];
+        if (!sec) continue;
+        sec.total++;
+        if (q.selectedKey === q.correctKey) sec.score++;
+        else sec.wrongCounts[q.correctKey] = (sec.wrongCounts[q.correctKey] || 0) + 1;
+        sec.questionDetails.push({
+          correctKey: q.correctKey,
+          selectedKey: q.selectedKey || null,
+          fileName: q.file.name,
+          playCount: q.playCount || 0,
+          indexInSection: q.indexInSection || null,
+          overallIndex: q.overallIndex || (overallIdx+1)
+        });
+      }
+
+      const timestamp = getEdmontonTimestamp();
+
+      const accounts = loadAccounts();
+      if (!accounts[currentUser]) accounts[currentUser] = { results: [] };
+
+      // Save per-section records only for sections that have total>0
+      Object.keys(sections).forEach(secKey=>{
+        const sec = sections[secKey];
+        if (sec.total === 0) return;
+        const record = { quizType: secKey, score: sec.score, total: sec.total, date: timestamp, questionDetails: sec.questionDetails, wrongCounts: sec.wrongCounts };
+        accounts[currentUser].results.push(record);
+        sessionResults[secKey] = record;
+        // lastQuestionsByType stores only the questions for that section up to cutoff
+        lastQuestionsByType[secKey] = questions.slice(0, effectiveCutoff+1).filter(q => q.section === secKey).map(q=>({ ...q }));
+        // send to sheet
+        sendResultToSheet({
+          uid: currentUser,
+          email: currentUser + "@example.com",
+          quizType: secKey,
+          score: sec.score,
+          total: sec.total,
+          wrongCounts: sec.wrongCounts,
+          questionDetails: sec.questionDetails,
+          date: timestamp
+        }).then(ok => {
+          if (ok) serverResponseEl.textContent = "Sheet: saved ✓";
+          else serverResponseEl.textContent = "Sheet: failed to save";
+        });
+      });
+
+      saveAccounts(accounts);
+
+      // Build combined score based on included sections
+      const totalCorrect = Object.values(sections).reduce((s,sec)=>s+sec.score,0);
+      const totalQuestions = Object.values(sections).reduce((s,sec)=>s+sec.total,0);
+      scoreP.textContent = `Combined score: ${totalCorrect} / ${totalQuestions} (${ totalQuestions ? (Math.round(1000*totalCorrect/totalQuestions)/10) : 0 }%).`;
+      scoreP.classList.remove('hidden');
+
+      submitInfo.textContent = `Submitted by: ${currentUser || '(unknown)'}  —  Time: ${timestamp}  — Full sequence (to question ${effectiveCutoff+1})`;
+      submitInfo.classList.remove('hidden');
+
+      // Build improved Correct/Wrong summary with HTML and wrong summary using overall sequence numbers
+      let outHtml = '';
+      Object.keys(sections).forEach((secKey)=>{
+        const sec = sections[secKey];
+        if (sec.total === 0) return; // skip empty sections
+        const secTitle = (secKey === 'interval') ? 'Part 1: Interval Identification' : (secKey === 'chord') ? 'Part 2: Chord Identification' :
+                         (PRE8_SECTIONS[secKey] ? PRE8_SECTIONS[secKey].title : secKey);
+
+        outHtml += `<div><strong>${secTitle} — Score: ${sec.score} / ${sec.total}</strong></div>`;
+        outHtml += `<div style="margin-top:6px"><strong>Question Details:</strong></div>`;
+        outHtml += `<div style="white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace; margin-left:6px;">`;
+        sec.questionDetails.forEach(qd=>{
+          const qnSec = qd.indexInSection || '?';
+          const qnOverall = qd.overallIndex || '?';
+          let correctLabel = labelForKey(secKey, qd.correctKey);
+          let selectedLabel = qd.selectedKey ? labelForKey(secKey, qd.selectedKey) : '(no answer)';
+          if (qd.selectedKey && qd.selectedKey !== qd.correctKey) {
+            outHtml += `Overall Q${qnOverall} (Sec Q${qnSec}): Correct: ${correctLabel}  — Selected: <span class="wrong-highlight">${selectedLabel}</span>  — Plays: ${qd.playCount || 0}  — (${qd.fileName})\n`;
+          } else if (!qd.selectedKey) {
+            outHtml += `Overall Q${qnOverall} (Sec Q${qnSec}): Correct: ${correctLabel}  — Selected: (no answer)  — Plays: ${qd.playCount || 0}  — (${qd.fileName})\n`;
+          } else {
+            outHtml += `Overall Q${qnOverall} (Sec Q${qnSec}): Correct: ${correctLabel}  — Selected: ${selectedLabel}  — Plays: ${qd.playCount || 0}  — (${qd.fileName})\n`;
+          }
+        });
+        outHtml += `</div>`;
+
+        const wrongOverallNums = sec.questionDetails.filter(qd => qd.selectedKey && qd.selectedKey !== qd.correctKey).map(qd => qd.overallIndex);
+        const wrongSummary = wrongOverallNums.length ? wrongOverallNums.join(', ') : '(none)';
+        outHtml += `<div style="margin-top:6px;"><strong>Wrong (overall sequence numbers):</strong> ${wrongSummary}</div>\n<div style="height:8px;"></div>`;
+
+        outHtml += `<hr style="margin:12px 0; border:none; border-top:1px dashed #ddd;">`;
+      });
+
+      wrongStatsEl.innerHTML = outHtml;
+      wrongStatsEl.classList.remove('hidden');
+
+      // Update nav presentation and ensure directory coloring applies immediately
+      updateNavPresentation();
+      makeDirectoryInteractiveAndColor();
+
+      copyContainer.classList.remove('hidden');
+      copyToDocBtn.onclick = async ()=> { await copyResultsAndOpenDocCombined(TEACHER_DOC_URL); };
+      combinedReview.classList.remove('hidden');
+      populateCombinedReview();
+
+      // celebration if any perfect parts among included sections
+      const perfectParts = [];
+      Object.keys(sections).forEach((k)=>{
+        const s = sections[k];
+        if (s.total>0 && s.score === s.total) perfectParts.push(k);
+      });
+      if (perfectParts.length > 0) showCelebration(perfectParts);
+    }
+
+    // helper to produce labels for keys (used in result summaries)
+    function labelForKey(sectionKey, key){
+      if (!key) return '(none)';
+      if (PRE8_SECTIONS[sectionKey] && PRE8_SECTIONS[sectionKey].labels && PRE8_SECTIONS[sectionKey].labels[key]) return PRE8_SECTIONS[sectionKey].labels[key];
+      if (codeToName[key]) return codeToName[key];
+      return key;
+    }
+
+    // show a simple celebration overlay listing perfect parts and play cheer audio while visible
+    function showCelebration(perfectParts){
+      try {
+        const overlay = celebrationContainer;
+        overlay.innerHTML = '';
+        const center = document.createElement('div');
+        center.className = 'celebration-center';
+        center.innerHTML = `<div class="celebration-timer">Well done!</div>
+          <div style="font-size:22px; margin-top:8px;">Perfect on: ${perfectParts.map(k => (k==='interval' ? 'Part 1' : k==='chord' ? 'Part 2' : PRE8_SECTIONS[k] ? PRE8_SECTIONS[k].title : k)).join(', ')}</div>
+          <div style="margin-top:12px; font-size:14px; color:#444;">Keep up the great work — results saved.</div>
+          <button class="celebration-close" title="Close">✕</button>`;
+        overlay.appendChild(center);
+
+        try {
+          cheerAudio.currentTime = 0;
+          cheerAudio.volume = 0.85;
+          cheerAudio.play().catch(()=>{});
+        } catch(e) { console.warn('cheer play failed', e); }
+
+        const closeBtn = center.querySelector('.celebration-close');
+        closeBtn.addEventListener('click', ()=>{
+          try { cheerAudio.pause(); cheerAudio.currentTime = 0; } catch(e){}
+          overlay.style.display = 'none';
+          overlay.setAttribute('aria-hidden','true');
+        });
+
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden','false');
+
+        setTimeout(()=>{
+          try { cheerAudio.pause(); cheerAudio.currentTime = 0; } catch(e){}
+          overlay.style.display = 'none';
+          overlay.setAttribute('aria-hidden','true');
+        }, 5500);
+      } catch(e){ console.warn(e); }
+    }
+
+    // attach keyboard shortcut for Next (Enter) optionally
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' && !document.getElementById('progressionModalRoot').innerHTML) {
+        const nextBtnVisible = document.getElementById('bigNextBtn').style.display !== 'none';
+        if (nextBtnVisible) handleTopNext();
+      }
+    });
+
+    // end of script
+  </script>
+</body>
+</html>
