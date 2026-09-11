@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Terms Quiz</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #f4f7f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .quiz-container {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 600px;
+      padding: 30px;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+      margin-top: 0;
+    }
+    .progress-bar {
+      font-size: 0.9em;
+      color: #666;
+      margin-bottom: 15px;
+      text-align: right;
+    }
+    .question {
+      font-size: 1.3em;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .btn {
+      background-color: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    .btn:hover {
+      background-color: #e2e6ea;
+      border-color: #dae0e5;
+    }
+    .btn.correct {
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
+    }
+    .btn.incorrect {
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+      color: #721c24;
+    }
+    .action-btn {
+      display: block;
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 14px;
+      font-size: 1.1em;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 25px;
+      transition: background-color 0.2s;
+    }
+    .action-btn:hover {
+      background-color: #0056b3;
+    }
+    .score-summary {
+      text-align: center;
+    }
+    .score {
+      font-size: 2em;
+      color: #28a745;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    .review-list {
+      margin-top: 20px;
+      text-align: left;
+    }
+    .review-item {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 4px;
+    }
+    .review-item strong {
+      color: #856404;
+    }
+    .hide {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="quiz-container">
+    <!-- Quiz Screen -->
+    <div id="quiz-screen">
+      <div class="progress-bar">Question <span id="current-q">1</span> of 10</div>
+      <div class="question" id="question-text">Loading question...</div>
+      <div class="choices" id="choices-container"></div>
+      <button id="next-btn" class="action-btn hide">Next Question</button>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="result-screen" class="hide score-summary">
+      <h2>Round Complete!</h2>
+      <p>Your Final Score:</p>
+      <div class="score" id="score-text">0 / 10</div>
+      <div id="review-container" class="review-list"></div>
+      <button id="restart-btn" class="action-btn">Play Another Round</button>
+    </div>
+  </div>
+
+  <script>
+    // Music Terms database extracted from file
+    const musicTerms = [
+      { term: "accelerando, accel.", def: "becoming quicker" },
+      { term: "accent", def: "a stressed note" },
+      { term: "ad libitum, ad lib.", def: "at the liberty of the performer" },
+      { term: "adagio", def: "slow" },
+      { term: "agitato", def: "agitated" },
+      { term: "alla, all", def: "in the manner of" },
+      { term: "allargando, allarg.", def: "broadening, becoming slower" },
+      { term: "allegretto", def: "fairly fast (a little slower than allegro)" },
+      { term: "allegro", def: "fast" },
+      { term: "andante", def: "moderately slow; at a walking pace" },
+      { term: "andantino", def: "a little faster than andante" },
+      { term: "animato", def: "lively, animated" },
+      { term: "arco", def: "on a bowed string instrument, resume bowing after a pizzicato passage" },
+      { term: "a tempo", def: "return to the original tempo" },
+      { term: "attacca", def: "proceed without a break" },
+      { term: "ben, bene", def: "well (for example, ben marcato: well marked)" },
+      { term: "bewegt", def: "moving" },
+      { term: "calando", def: "becoming slower and softer" },
+      { term: "cantabile", def: "in a singing style" },
+      { term: "cédez", def: "yield; hold the tempo back" },
+      { term: "col, coll, colla, colle", def: "with (for example, coll'ottava: with an added octave)" },
+      { term: "comodo", def: "at a comfortable, easy tempo" },
+      { term: "con", def: "with" },
+      { term: "con brio", def: "with vigor, spirit" },
+      { term: "con expresione", def: "with expression" },
+      { term: "con fuoco", def: "with fire" },
+      { term: "con grazia", def: "with grace" },
+      { term: "con moto", def: "with motion" },
+      { term: "con sordino", def: "with mute" },
+      { term: "crescendo, cresc.", def: "becoming louder" },
+      { term: "da capo, D.C.", def: "from the beginning" },
+      { term: "dal segno, D.S.", def: "from the sign" },
+      { term: "D.C. al Fine", def: "repeat from the beginning and end at Fine" },
+      { term: "decrescendo, decresc.", def: "becoming softer" },
+      { term: "diminuendo, dim.", def: "becoming softer" },
+      { term: "dolce", def: "sweet, gentle" },
+      { term: "dolente", def: "sad" },
+      { term: "e, ed", def: "and" },
+      { term: "espressivo, espress.", def: "expressive, with expression" },
+      { term: "fine", def: "the end" },
+      { term: "forte, f", def: "loud" },
+      { term: "fortepiano, fp", def: "loud, then suddenly soft" },
+      { term: "fortissimo, ff", def: "very loud" },
+      { term: "giocoso", def: "humorous, jocose" },
+      { term: "grandioso", def: "grand, grandiose" },
+      { term: "grave", def: "slow and solemn" },
+      { term: "grazioso", def: "graceful" },
+      { term: "langsam", def: "slow, slowly" },
+      { term: "largamente", def: "broadly" },
+      { term: "larghetto", def: "fairly slow, but not as slow as largo" },
+      { term: "largo", def: "very slow" },
+      { term: "legato", def: "smooth" },
+      { term: "léger", def: "light, lightly" },
+      { term: "leggiero", def: "light, nimble, quick" },
+      { term: "lentement", def: "slowly" },
+      { term: "lento", def: "slow" },
+      { term: "l'istesso tempo", def: "the same tempo" },
+      { term: "loco", def: "return to the normal register" },
+      { term: "ma", def: "but (for example, ma non troppo: but not too much)" },
+      { term: "maestoso", def: "majestic" },
+      { term: "mano destra, m.d.", def: "right hand" },
+      { term: "mano sinistra, m.s.", def: "left hand" },
+      { term: "marcato", def: "marked or stressed" },
+      { term: "martellato", def: "strongly accented, hammered" },
+      { term: "mässig", def: "moderate, moderately" },
+      { term: "meno", def: "less" },
+      { term: "meno mosso", def: "less movement, slower" },
+      { term: "mesto", def: "sad, mournful" },
+      { term: "mezzo forte, mf", def: "moderately loud" },
+      { term: "mezzo piano, mp", def: "moderately soft" },
+      { term: "mit Ausdruck", def: "with expression" },
+      { term: "moderato", def: "at a moderate tempo" },
+      { term: "modéré", def: "at a moderate tempo" },
+      { term: "molto", def: "much, very" },
+      { term: "morendo", def: "dying, fading away" },
+      { term: "mouvement", def: "tempo, motion" },
+      { term: "ottava, 8va", def: "the interval of an octave" },
+      { term: "pedale, ped.", def: "pedal" },
+      { term: "pesante", def: "weighty, with emphasis" },
+      { term: "pianissimo, pp", def: "very soft" },
+      { term: "piano, p", def: "soft" },
+      { term: "più", def: "more" },
+      { term: "più mosso", def: "more movement (quicker)" },
+      { term: "pizzicato", def: "on a bowed string instrument, pluck the string instead of bowing" },
+      { term: "poco", def: "little" },
+      { term: "poco a poco", def: "little by little" },
+      { term: "prestissimo", def: "as fast as possible" },
+      { term: "presto", def: "very fast" },
+      { term: "primo, prima", def: "first; the upper part of a duet" },
+      { term: "quasi", def: "almost, as if" },
+      { term: "quindicesima alta, 15ma", def: "two octaves higher" },
+      { term: "rallentando, rall.", def: "slowing down" },
+      { term: "risoluto", def: "resolute" },
+      { term: "ritardando, rit.", def: "slowing down gradually" },
+      { term: "ritenuto, riten.", def: "suddenly slower, held back" },
+      { term: "rubato", def: "with some freedom of tempo to enhance musical expression" },
+      { term: "scherzando", def: "playful" },
+      { term: "schnell", def: "fast" },
+      { term: "secondo, seconda", def: "second; second or lower part of a duet" },
+      { term: "sehr", def: "very" },
+      { term: "semplice", def: "simple" },
+      { term: "sempre", def: "always, continuously" },
+      { term: "senza", def: "without" },
+      { term: "sforzando, sf, sfz", def: "sudden strong accent of a single note or chord" },
+      { term: "simile", def: "continue in the same manner as has just been indicated" },
+      { term: "sonore", def: "sonorous" },
+      { term: "sopra", def: "above" },
+      { term: "sostenuto", def: "sustained" },
+      { term: "sotto voce", def: "soft, subdued, under the breath" },
+      { term: "spiritoso", def: "spirited" },
+      { term: "staccato", def: "detached" },
+      { term: "stringendo", def: "pressing, becoming faster" },
+      { term: "subito", def: "suddenly" },
+      { term: "tacet", def: "be silent" },
+      { term: "tempo", def: "speed at which music is performed" },
+      { term: "Tempo primo (Tempo I)", def: "return to the original tempo" },
+      { term: "tranquillo", def: "quiet, tranquil" },
+      { term: "tre corde", def: "three strings; release the left pedal (on the piano)" },
+      { term: "troppo", def: "too much" },
+      { term: "tutti", def: "a passage for the ensemble" },
+      { term: "una corda", def: "one string; depress the left pedal (on the piano)" },
+      { term: "vite", def: "fast" },
+      { term: "vivace", def: "lively, brisk" },
+      { term: "vivo", def: "lively" },
+      { term: "volta", def: "time (for example, prima volta: first time; seconda volta: second time)" },
+      { term: "volti subito, v.s.", def: "turn the page quickly" }
+    ];
+
+    let currentQuestions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let wrongAnswers = [];
+
+    const questionText = document.getElementById("question-text");
+    const choicesContainer = document.getElementById("choices-container");
+    const nextBtn = document.getElementById("next-btn");
+    const currentQSpan = document.getElementById("current-q");
+    const quizScreen = document.getElementById("quiz-screen");
+    const resultScreen = document.getElementById("result-screen");
+    const scoreText = document.getElementById("score-text");
+    const reviewContainer = document.getElementById("review-container");
+    const restartBtn = document.getElementById("restart-btn");
+
+    function startRound() {
+      score = 0;
+      currentQuestionIndex = 0;
+      wrongAnswers = [];
+      
+      // Shuffle all terms and pick 10
+      const shuffled = [...musicTerms].sort(() => 0.5 - Math.random());
+      currentQuestions = shuffled.slice(0, 10);
+
+      quizScreen.classList.remove("hide");
+      resultScreen.classList.add("hide");
+      showQuestion();
+    }
+
+    function showQuestion() {
+      nextBtn.classList.add("hide");
+      choicesContainer.innerHTML = "";
+      
+      const qData = currentQuestions[currentQuestionIndex];
+      currentQSpan.textContent = currentQuestionIndex + 1;
+      questionText.textContent = `What is the meaning of "${qData.term}"?`;
+
+      // Generate 1 correct + 3 incorrect choices
+      const distractorPool = musicTerms.filter(item => item.def !== qData.def);
+      const shuffledDistractors = distractorPool.sort(() => 0.5 - Math.random()).slice(0, 3);
+      const choices = [qData, ...shuffledDistractors].sort(() => 0.5 - Math.random());
+
+      choices.forEach(choice => {
+        const btn = document.createElement("button");
+        btn.classList.add("btn");
+        btn.textContent = choice.def;
+        btn.addEventListener("click", () => selectChoice(btn, choice.def, qData));
+        choicesContainer.appendChild(btn);
+      });
+    }
+
+    function selectChoice(selectedBtn, selectedDef, qData) {
+      const buttons = choicesContainer.querySelectorAll(".btn");
+      buttons.forEach(btn => btn.disabled = true); // Disable selection after choice
+
+      if (selectedDef === qData.def) {
+        selectedBtn.classList.add("correct");
+        score++;
+      } else {
+        selectedBtn.classList.add("incorrect");
+        // Highlight correct answer
+        buttons.forEach(btn => {
+          if (btn.textContent === qData.def) {
+            btn.classList.add("correct");
+          }
+        });
+
+        // Record wrong choice for review summary
+        wrongAnswers.push({
+          term: qData.term,
+          correct: qData.def,
+          chosen: selectedDef
+        });
+      }
+
+      if (currentQuestionIndex < 9) {
+        nextBtn.textContent = "Next Question";
+      } else {
+        nextBtn.textContent = "Show Results";
+      }
+      nextBtn.classList.remove("hide");
+    }
+
+    nextBtn.addEventListener("click", () => {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < 10) {
+        showQuestion();
+      } else {
+        showResults();
+      }
+    });
+
+    function showResults() {
+      quizScreen.classList.add("hide");
+      resultScreen.classList.remove("hide");
+
+      scoreText.textContent = `${score} / 10`;
+
+      // Generate summary of incorrect choices
+      reviewContainer.innerHTML = "";
+      if (wrongAnswers.length === 0) {
+        reviewContainer.innerHTML = "<p style='color: #28a745; text-align: center; font-weight: bold;'>Perfect Score! No wrong choices to review.</p>";
+      } else {
+        const heading = document.createElement("h3");
+        heading.textContent = "Review Wrong Choices:";
+        heading.style.color = "#856404";
+        reviewContainer.appendChild(heading);
+
+        wrongAnswers.forEach(item => {
+          const div = document.createElement("div");
+          div.classList.add("review-item");
+          div.innerHTML = `
+            <div><strong>Term:</strong> ${item.term}</div>
+            <div><strong>Your Answer:</strong> <span style="color: #dc3545;">${item.chosen}</span></div>
+            <div><strong>Correct Answer:</strong> <span style="color: #28a745;">${item.correct}</span></div>
+          `;
+          reviewContainer.appendChild(div);
+        });
+      }
+    }
+
+    restartBtn.addEventListener("click", startRound);
+
+    // Initialize on load
+    startRound();
+  </script>
+</body>
+</html>
